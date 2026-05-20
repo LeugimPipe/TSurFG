@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://c48gu0gwlwanq"]
+
+[ext_resource type="Script" uid="uid://cvm7rp6gq2ebi" path="res://model/body/body.gd" id="1_0dw1n"]
+[ext_resource type="PackedScene" uid="uid://bmlvlped7esah" path="res://model/vertex/vertex.tscn" id="2_1kt7i"]
+[ext_resource type="PackedScene" uid="uid://d4nfjtwcec7bm" path="res://model/edge/edge.tscn" id="3_upilp"]
+[ext_resource type="PackedScene" uid="uid://vg4klibov5r0" path="res://model/facet/facet.tscn" id="4_lw5i1"]
+[ext_resource type="PackedScene" uid="uid://cw45abbvc354e" path="res://model/force/force.tscn" id="5_upilp"]
+
+[node name="Body" type="Node" unique_id=367821806]
+script = ExtResource("1_0dw1n")
+vertex_scene = ExtResource("2_1kt7i")
+edge_scene = ExtResource("3_upilp")
+facet_scene = ExtResource("4_lw5i1")
+force_scene = ExtResource("5_upilp")

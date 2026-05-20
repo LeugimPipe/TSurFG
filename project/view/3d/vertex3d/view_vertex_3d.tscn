@@ -1,0 +1,16 @@
+[gd_scene format=3 uid="uid://bamxvv0muf41f"]
+
+[ext_resource type="Script" uid="uid://cbb82jfmuwpq8" path="res://view/3d/vertex3d/view_vertex_3d.gd" id="1_tk0c7"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tk0c7"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_wdxv2"]
+material = SubResource("StandardMaterial3D_tk0c7")
+radius = 0.05
+height = 0.1
+
+[node name="ViewVertex3D" type="Node3D" unique_id=1564940337]
+script = ExtResource("1_tk0c7")
+
+[node name="VertexVis" type="MeshInstance3D" parent="." unique_id=1870229033]
+mesh = SubResource("SphereMesh_wdxv2")

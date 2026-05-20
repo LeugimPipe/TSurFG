@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://qur3dxgfiqe8"]
+
+[ext_resource type="Script" uid="uid://i4ur1nnnulp4" path="res://view/2d/vertex2d/view_vertex_2d.gd" id="1_wd2sv"]
+
+[node name="ViewVertex2D" type="Node2D" unique_id=904095140]
+script = ExtResource("1_wd2sv")

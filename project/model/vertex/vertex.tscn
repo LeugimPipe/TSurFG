@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://bmlvlped7esah"]
+
+[ext_resource type="Script" uid="uid://2ew4xyea18ey" path="res://model/vertex/vertex.gd" id="1_6esch"]
+
+[node name="Vertex" type="Node" unique_id=897174071]
+script = ExtResource("1_6esch")
+
+[connection signal="coords_changed" from="." to="." method="_on_coords_changed"]

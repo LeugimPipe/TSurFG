@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b7m8wfmdgj5r6"]
+
+[ext_resource type="Script" uid="uid://duns80s4le8mm" path="res://view/2d/facet2d/view_facet_2d.gd" id="1_0axsy"]
+
+[node name="ViewFacet2D" type="Node2D" unique_id=1867886867]
+script = ExtResource("1_0axsy")
