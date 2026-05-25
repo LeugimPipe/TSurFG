@@ -1,6 +1,6 @@
 extends Node
 
-var AMBIENT_DIMENSION = 2
+var AMBIENT_DIMENSION = 3
 
 # 2D Transforms
 var VIS_SCALE_2D = 100

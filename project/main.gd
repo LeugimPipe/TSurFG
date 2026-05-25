@@ -1,6 +1,6 @@
 extends Node
 
-@export var  body_scene : PackedScene
+@export var body_scene : PackedScene
 
 var view
 

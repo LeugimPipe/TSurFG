@@ -35,7 +35,21 @@ func on_head_changed(coords : Array) -> void:
 	draw()
 	
 func draw() -> void:
-	var t = Transform3D()
-	t.origin = tail
-	t.basis.x = head - tail
-	transform = t
+	position = tail
+	
+	var segment = head - tail
+	$Gimbal/EdgeVis.mesh.height = segment.length()
+	$Gimbal/EdgeVis.position.x = segment.length()/2
+	
+	# Longitude
+	var long = Vector2(segment.x, segment.z).angle()
+	rotation.y = -long
+	
+	# Latitude
+	var lat
+	if segment.x == 0 and segment.z == 0:
+		lat = PI/2
+	else:
+		lat = segment.angle_to(Vector3(segment.x, 0 , segment.z))
+	if segment.y < 0: lat = -lat
+	$Gimbal.rotation.z = lat

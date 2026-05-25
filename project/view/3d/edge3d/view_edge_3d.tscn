@@ -2,16 +2,17 @@
 
 [ext_resource type="Script" uid="uid://7m138l8lffwe" path="res://view/3d/edge3d/view_edge_3d.gd" id="1_wgf23"]
 
-[sub_resource type="CylinderMesh" id="CylinderMesh_wgf23"]
+[sub_resource type="CylinderMesh" id="CylinderMesh_qooxi"]
+resource_local_to_scene = true
 top_radius = 0.025
 bottom_radius = 0.025
 height = 1.0
-cap_top = false
-cap_bottom = false
 
 [node name="ViewEdge3D" type="Node3D" unique_id=935864610]
 script = ExtResource("1_wgf23")
 
-[node name="EdgeVis" type="MeshInstance3D" parent="." unique_id=645647399]
+[node name="Gimbal" type="Node3D" parent="." unique_id=1218110331]
+
+[node name="EdgeVis" type="MeshInstance3D" parent="Gimbal" unique_id=1185567190]
 transform = Transform3D(-4.371139e-08, -1, 0, 1, -4.371139e-08, 0, 0, 0, 1, 0.5, 0, 0)
-mesh = SubResource("CylinderMesh_wgf23")
+mesh = SubResource("CylinderMesh_qooxi")

@@ -3,11 +3,17 @@
 [ext_resource type="Script" uid="uid://c6q3a65pcg1kx" path="res://view/3d/facet3d/view_facet_3d.gd" id="1_be25t"]
 
 [sub_resource type="PrismMesh" id="PrismMesh_be25t"]
+resource_local_to_scene = true
 size = Vector3(1, 1, 0)
 
 [node name="ViewFacet3D" type="Node3D" unique_id=2107353635]
 script = ExtResource("1_be25t")
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=190096058]
+[node name="GimbalOuter" type="Node3D" parent="." unique_id=1200469857]
+
+[node name="GimbalInner" type="Node3D" parent="GimbalOuter" unique_id=1969103220]
+
+[node name="FacetVis" type="MeshInstance3D" parent="GimbalOuter/GimbalInner" unique_id=190096058]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.5, 0)
 mesh = SubResource("PrismMesh_be25t")
+skeleton = NodePath("../../..")

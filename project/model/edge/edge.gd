@@ -17,3 +17,8 @@ func init(_tail = null, _head = null) -> void:
 
 	view.init(tail, head)
 	add_child(view)
+
+func inverse() -> Object:
+	var ret = load("res://model/edge/edge.tscn").instantiate()
+	ret.init(head, tail)
+	return ret
