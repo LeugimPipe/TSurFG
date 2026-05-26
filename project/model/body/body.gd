@@ -33,6 +33,7 @@ func set_forces_zero() -> void:
 func calc_forces() -> void:
 	set_forces_zero()
 
+# TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate() -> void:
 	for i in vertices.size():
 		vertices[i].coords = [ vertices[i].coords[0] + 0.2*forces[i][0].coords[0], vertices[i].coords[1] + 0.2*forces[i][0].coords[1] ]

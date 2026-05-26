@@ -9,24 +9,74 @@ func init(_edge1, _edge2, _edge3) -> void:
 	v0.y = _edge1.tail.coords[1]
 	if _edge1.tail.coords.size() > 2:
 		v0.z = _edge1.tail.coords[2]
+	_edge1.tail.coords_changed.connect(self.on_v0_changed)
 	
 	v1.x = _edge2.tail.coords[0]
 	v1.y = _edge2.tail.coords[1]
 	if _edge2.tail.coords.size() > 2:
 		v1.z = _edge2.tail.coords[2]
+	_edge2.tail.coords_changed.connect(self.on_v1_changed)
 	
 	v2.x = _edge3.tail.coords[0]
 	v2.y = _edge3.tail.coords[1]
 	if _edge3.tail.coords.size() > 2:
 		v2.z = _edge3.tail.coords[2]
+	_edge3.tail.coords_changed.connect(self.on_v2_changed)
 	
 	draw()
 
+func on_v0_changed(coords : Array) -> void:
+	v0.x = coords[0]
+	v0.y = coords[1]
+	if coords.size() > 2:
+		v0.z = coords[2]
+	draw()
+
+func on_v1_changed(coords : Array) -> void:
+	v1.x = coords[0]
+	v1.y = coords[1]
+	if coords.size() > 2:
+		v1.z = coords[2]
+	draw()
+
+func on_v2_changed(coords : Array) -> void:
+	v2.x = coords[0]
+	v2.y = coords[1]
+	if coords.size() > 2:
+		v2.z = coords[2]
+	draw()
+
 func draw() -> void:
+	$GimbalOuter/GimbalInner/FacetVis.transform = Transform3D.IDENTITY
 	position = v0
 
+	# Base
 	$GimbalOuter/GimbalInner/FacetVis.mesh.size.x = e0().length()
 	$GimbalOuter/GimbalInner/FacetVis.position.x = e0().length()/2
+	
+	# Height
+	$GimbalOuter/GimbalInner/FacetVis.mesh.size.y = height()
+	$GimbalOuter/GimbalInner/FacetVis.position.y = height()/2
+	
+	
+	# Shear transform
+	# Transform height vector (0, height(), 0)
+	# Tail in (e0.length(), 0, 0)
+	# Head in (e0.length(), height(), 0)
+	# Into (shear_factor, height(), 0)
+	# Tail in (e0.length(), 0, 0)
+	# Head in (e0.length()+shear_factor, height(), 0)
+	# Such that it ends, when the other transformations are done, in v2
+	var t = Transform3D()
+	# Median vector of the triangle
+	# (Image of the current height vector)
+	var median_vector = v2 - (v0+v1)/2
+	var shear_factor = e0().normalized().dot(median_vector) / height()
+	t.basis.y = Vector3(shear_factor,1,0)
+	$GimbalOuter/GimbalInner/FacetVis.transform = t*$GimbalOuter/GimbalInner/FacetVis.transform
+	
+	#$GimbalOuter/GimbalInner/Normal.position.x = (1.5+shear_factor)/3 * (e0().length())
+	#$GimbalOuter/GimbalInner/Normal.position.y = height()/3
 	
 	# Longitude
 	var long = Vector2(e0().x, e0().z).angle()
@@ -41,21 +91,11 @@ func draw() -> void:
 	if e0().y < 0: lat = -lat
 	$GimbalOuter.rotation.z = lat
 	
-	# Height
-	$GimbalOuter/GimbalInner/FacetVis.mesh.size.y = height()
-	$GimbalOuter/GimbalInner/FacetVis.position.y = height()/2
-	
 	# Angle to triangle
 	# Current height vector
 	var cur_height = Vector3( cos(lat+PI/2)*cos(long), sin(lat+PI/2), cos(lat+PI/2)*sin(long))
-	var angle = cur_height.signed_angle_to(height_vector(), $GimbalOuter/GimbalInner.basis.x)
-	$GimbalOuter/GimbalInner.rotation.x = -angle
-	
-	# Shear transform
-	var t = Transform3D()
-	var shear_factor = e0().normalized().dot(-e2()) / e0().length() - .5
-	t.basis.y = Vector3(shear_factor,1,0)
-	$GimbalOuter/GimbalInner/FacetVis.transform = t*$GimbalOuter/GimbalInner/FacetVis.transform
+	var angle = cur_height.signed_angle_to(height_vector(), e0())
+	$GimbalOuter/GimbalInner.rotation.x = angle
 
 func e0() -> Vector3:
 	return v1 - v0

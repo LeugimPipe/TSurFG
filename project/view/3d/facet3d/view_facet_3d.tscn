@@ -6,6 +6,11 @@
 resource_local_to_scene = true
 size = Vector3(1, 1, 0)
 
+[sub_resource type="CylinderMesh" id="CylinderMesh_be25t"]
+top_radius = 0.025
+bottom_radius = 0.025
+height = 1.0
+
 [node name="ViewFacet3D" type="Node3D" unique_id=2107353635]
 script = ExtResource("1_be25t")
 
@@ -17,3 +22,7 @@ script = ExtResource("1_be25t")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.5, 0)
 mesh = SubResource("PrismMesh_be25t")
 skeleton = NodePath("../../..")
+
+[node name="Normal" type="MeshInstance3D" parent="GimbalOuter/GimbalInner" unique_id=64680639]
+transform = Transform3D(1, 0, 0, 0, -4.371139e-08, -1, 0, 1, -4.371139e-08, 0.5, 0.333, 0.5)
+mesh = SubResource("CylinderMesh_be25t")
