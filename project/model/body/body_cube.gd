@@ -49,7 +49,7 @@ func init() -> void:
 	
 	# +Y face diagonals
 	edges[16].init(vertices[2], vertices[11])
-	edges[15].init(vertices[3], vertices[11])
+	edges[17].init(vertices[3], vertices[11])
 	edges[18].init(vertices[7], vertices[11])
 	edges[19].init(vertices[6], vertices[11])
 	
@@ -81,30 +81,45 @@ func init() -> void:
 		add_child(edges[i])
 	
 	# Factes
-	var nfacets = 2 # 6*4
+	var nfacets = 6*4
 	for i in nfacets:
 		facets.append(facet_scene.instantiate())
 
+	# -Y face
 	facets[0].init(edges[0].inverse(), edges[12], edges[13].inverse())
-	facets[1].init(edges[1].inverse(), edges[13], edges[14].inverse() )
+	facets[1].init(edges[1].inverse(), edges[13], edges[14].inverse())
+	facets[2].init(edges[2].inverse(), edges[14], edges[15].inverse())
+	facets[3].init(edges[3].inverse(), edges[15], edges[12].inverse())
 	
-	#facets[2].init(edges[0], edges[9], edges[12].inverse())
-	#facets[3].init(edges[4].inverse(), edges[8].inverse(),edges[12])
+	# -Z face
+	facets[4].init(edges[3], edges[28], edges[30].inverse())
+	facets[5].init(edges[8], edges[29], edges[28].inverse())
+	facets[6].init(edges[7].inverse(), edges[31], edges[29].inverse())
+	facets[7].init(edges[11].inverse(), edges[30], edges[31].inverse())
 	
-	#facets[4].init(edges[1], edges[10], edges[13].inverse())
-	#facets[5].init(edges[5].inverse(), edges[9].inverse(), edges[13])
+	# -X face
+	facets[8].init(edges[0], edges[21], edges[20].inverse())
+	facets[9].init(edges[9], edges[23], edges[21].inverse())
+	facets[10].init(edges[4].inverse(), edges[22], edges[23].inverse())
+	facets[11].init(edges[8].inverse(), edges[20], edges[22].inverse())
 	
-	#facets[6].init(edges[3], edges[8], edges[15].inverse())
-	#facets[7].init(edges[7].inverse(), edges[11].inverse(), edges[15])
+	# +X face
+	facets[12].init(edges[2], edges[24], edges[25].inverse())
+	facets[13].init(edges[11], edges[26], edges[24].inverse())
+	facets[14].init(edges[6].inverse(), edges[27], edges[26].inverse())
+	facets[15].init(edges[10].inverse(), edges[25], edges[27].inverse())
 	
-	#facets[8].init(edges[2], edges[11], edges[14].inverse())
-	#facets[9].init(edges[6].inverse(), edges[10].inverse(), edges[14])
+	# +Z face
+	facets[16].init(edges[1], edges[34], edges[32].inverse())
+	facets[17].init(edges[10], edges[35], edges[34].inverse())
+	facets[18].init(edges[5].inverse(), edges[33], edges[35].inverse())
+	facets[19].init(edges[9].inverse(), edges[32], edges[33].inverse())
 	
-	#facets[8].init(edges[2], edges[11], edges[14].inverse())
-	#facets[9].init(edges[6].inverse(), edges[10].inverse(), edges[14])
-	
-	#facets[10].init(edges[5], edges[6], edges[17].inverse())
-	#facets[11].init(edges[4], edges[17], edges[7])
+	# +Y face
+	facets[20].init(edges[5], edges[18], edges[17].inverse())
+	facets[21].init(edges[6], edges[19], edges[18].inverse())
+	facets[22].init(edges[7], edges[16], edges[19].inverse())
+	facets[23].init(edges[4], edges[17], edges[16].inverse())
 	
 	# TODO: check compatible orientations
 	
