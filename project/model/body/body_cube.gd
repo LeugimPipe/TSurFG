@@ -149,6 +149,10 @@ func calc_forces() -> void:
 	# Force 1: Gradient of area
 	for i in vertices.size():
 		calc_force_vertex(i)
+	
+	for i in forces.size():
+		print("Force in vertex %s" % i)
+		print(forces[i][0].coords)
 
 func calc_force_vertex(i: int) -> void:
 	if i >= vertices.size():
@@ -182,3 +186,41 @@ func get_facets_of_vertex(i : int) -> Array:
 			ret.append(ff)
 
 	return ret
+
+func refine() -> void:
+	var new_facets = []
+	for f in facets:
+		var e0 = f.edge0
+		var e1 = f.edge1
+		var e2 = f.edge2
+		
+		vertices.append(vertex_scene.instantiate())
+		vertices[-1].init(f.center())
+		add_child(vertices[-1])
+		
+		edges.append(edge_scene.instantiate())
+		edges[-1].init(f.v0(), vertices[-1])
+		add_child(edges[-1])
+		
+		edges.append(edge_scene.instantiate())
+		edges[-1].init(f.v1(), vertices[-1])
+		add_child(edges[-1])
+		
+		edges.append(edge_scene.instantiate())
+		edges[-1].init(f.v2(), vertices[-1])
+		add_child(edges[-1])
+		
+		f.init(e0, edges[-2], edges[-3].inverse())
+		
+		new_facets.append(facet_scene.instantiate())
+		new_facets[-1].init(e1, edges[-1], edges[-2].inverse())
+		add_child(new_facets[-1])
+		
+		new_facets.append(facet_scene.instantiate())
+		new_facets[-1].init(e2, edges[-3], edges[-1].inverse())
+		add_child(new_facets[-1])
+	
+	for f in new_facets:
+		facets.append(f)
+	
+	calc_forces()

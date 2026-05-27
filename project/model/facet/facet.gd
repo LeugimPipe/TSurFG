@@ -7,6 +7,7 @@ var edge2
 var view
 
 func init( _edge0 = null, _edge1 = null, _edge2 = null) -> void:
+	if view != null: view.queue_free()
 	edge0 = _edge0
 	edge1 = _edge1
 	edge2 = _edge2
@@ -71,4 +72,20 @@ func get_oposite_side_rotated(vertex) -> Vector3:
 	var normal = vece0.cross(vece1).normalized()
 	
 	return vecside.rotated( normal, -PI/2)
+
+func v0():
+	return edge0.tail
+
+func v1():
+	return edge1.tail
+
+func v2():
+	return edge2.tail
+
+func center() -> Array:
+	var ret = [0, 0, 0]
 	
+	for i in 3:
+		ret[i] = 1/3. * (v0().coords[i] + v1().coords[i] + v2().coords[i])
+	
+	return ret

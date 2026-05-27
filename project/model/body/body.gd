@@ -44,3 +44,8 @@ func iterate() -> void:
 func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("iterate"):
 		iterate()
+	if Input.is_action_just_pressed("refine"):
+		refine()
+
+func refine() -> void:
+	pass
