@@ -21,7 +21,14 @@ func init() -> void:
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	init()
+	calc_all_ev_vectors()
+
+func calc_all_ev_vectors() -> void:
 	calc_forces()
+	restore_constants()
+
+func restore_constants() -> void:
+	pass
 
 func set_forces_zero() -> void:
 	forces.resize(vertices.size())
@@ -38,6 +45,7 @@ func iterate() -> void:
 	for i in vertices.size():
 		vertices[i].coords = [ vertices[i].coords[0] + 0.2*forces[i][0].coords[0], vertices[i].coords[1] + 0.2*forces[i][0].coords[1] ]
 	
+	restore_constants()
 	calc_forces()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.

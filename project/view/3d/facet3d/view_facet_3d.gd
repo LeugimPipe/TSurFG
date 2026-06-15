@@ -4,24 +4,24 @@ var v0 : Vector3 = Vector3.ZERO
 var v1 : Vector3 = Vector3.ZERO
 var v2 : Vector3 = Vector3.ZERO
 
-func init(_edge1, _edge2, _edge3) -> void:
-	v0.x = _edge1.tail.coords[0]
-	v0.y = _edge1.tail.coords[1]
-	if _edge1.tail.coords.size() > 2:
-		v0.z = _edge1.tail.coords[2]
-	_edge1.tail.coords_changed.connect(self.on_v0_changed)
+func init(_v0, _v1, _v2) -> void:
+	v0.x = _v0.coords[0]
+	v0.y = _v0.coords[1]
+	if _v0.coords.size() > 2:
+		v0.z = _v0.coords[2]
+	_v0.coords_changed.connect(self.on_v0_changed)
 	
-	v1.x = _edge2.tail.coords[0]
-	v1.y = _edge2.tail.coords[1]
-	if _edge2.tail.coords.size() > 2:
-		v1.z = _edge2.tail.coords[2]
-	_edge2.tail.coords_changed.connect(self.on_v1_changed)
+	v1.x = _v1.coords[0]
+	v1.y = _v1.coords[1]
+	if _v1.coords.size() > 2:
+		v1.z = _v1.coords[2]
+	_v1.coords_changed.connect(self.on_v1_changed)
 	
-	v2.x = _edge3.tail.coords[0]
-	v2.y = _edge3.tail.coords[1]
-	if _edge3.tail.coords.size() > 2:
-		v2.z = _edge3.tail.coords[2]
-	_edge3.tail.coords_changed.connect(self.on_v2_changed)
+	v2.x = _v2.coords[0]
+	v2.y = _v2.coords[1]
+	if _v2.coords.size() > 2:
+		v2.z = _v2.coords[2]
+	_v2.coords_changed.connect(self.on_v2_changed)
 	
 	draw()
 
@@ -75,8 +75,8 @@ func draw() -> void:
 	t.basis.y = Vector3(shear_factor,1,0)
 	$GimbalOuter/GimbalInner/FacetVis.transform = t*$GimbalOuter/GimbalInner/FacetVis.transform
 	
-	#$GimbalOuter/GimbalInner/Normal.position.x = (1.5+shear_factor)/3 * (e0().length())
-	#$GimbalOuter/GimbalInner/Normal.position.y = height()/3
+	$GimbalOuter/GimbalInner/Normal.position.x = (1.5+shear_factor)/3 * (e0().length())
+	$GimbalOuter/GimbalInner/Normal.position.y = height()/3
 	
 	# Longitude
 	var long = Vector2(e0().x, e0().z).angle()

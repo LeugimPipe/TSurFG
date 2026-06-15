@@ -6,6 +6,7 @@ var head
 var view
 
 func init(_tail = null, _head = null) -> void:
+	if view != null: view.queue_free()
 	tail = _tail
 	head = _head
 	
@@ -18,7 +19,10 @@ func init(_tail = null, _head = null) -> void:
 	view.init(tail, head)
 	add_child(view)
 
-func inverse() -> Object:
-	var ret = load("res://model/edge/edge.tscn").instantiate()
-	ret.init(head, tail)
+func midpoint() -> Array:
+	var ret = [0, 0, 0]
+	
+	for i in 3:
+		ret[i] = 0.5 * (tail.coords[i] + head.coords[i])
+	
 	return ret
