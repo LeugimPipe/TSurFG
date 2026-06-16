@@ -18,8 +18,8 @@ func _ready() -> void:
 	var content = file.get_as_text()
 	
 	var body = body_scene.instantiate()
-	body.load_file(content)
 	add_child(body)
+	body.load_file(content)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
