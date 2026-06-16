@@ -68,8 +68,10 @@ func refine() -> void:
 func load_file(content: String) -> void:
 	file_content = content
 	
+	consume_white_or_end_line()
+	
 	# Check file type
-	if check_and_consume_head("ply\n"):
+	if check_and_consume_head("ply"):
 		file_type = PLY
 		load_ply()
 	else:
@@ -78,14 +80,35 @@ func load_file(content: String) -> void:
 
 # FILE PROCESS UTILS
 
+func is_white_space(s : String) -> bool:
+	return s == " " or s == "\t"
+
+func is_new_line(s : String) -> bool:
+	return s == "\n"
+
+func is_new_line_or_white(s : String) -> bool:
+	return is_white_space(s) or is_new_line(s)
+
+# Consumes first n characters
+func consume(n: int) -> void:
+	file_content = file_content.right( -n )
+
 # Checks first characters of file_content match check
 # And if so consumes them
 # Else displays error message
+# Consumes white spaces and endlines before and after check
 func check_and_consume_head(check: String) -> bool:
+	consume_white_or_end_line()
+	
 	if check_head(check):
-		file_content = file_content.right( -check.length() )
+		consume( check.length() )
+		consume_white_or_end_line()
 		return true
-	if file_type == PLY: error_ply()
+	
+	match file_type:
+		PLY:
+			error_ply()
+	
 	return false
 
 func check_head(check: String) -> bool:
@@ -94,33 +117,75 @@ func check_head(check: String) -> bool:
 # Consume file_content until nth character
 func consume_until(s : String, n : int = 1) -> void:
 	for i in n:
-		file_content = file_content.right( -file_content.find(s)-1 )
+		consume( file_content.find(s)+1 )
 
 func consume_line(n: int = 1) -> void:
 	consume_until("\n", n)
 
 # Returns and consumes first part of file_content
 # (default separator \n)
-func get_and_consume_head(separator: String = "\n") -> String:
+func get_and_consume_head(separator: String = "") -> String:
 	var ret : String
 	
-	var pos_sep = file_content.find(separator)
-	ret = file_content.left( pos_sep )
-	file_content = file_content.right( -pos_sep-1 )
+	consume_white_or_end_line()
+	
+	if separator != "":
+		var pos_sep = file_content.find(separator)
+		ret = file_content.left( pos_sep )
+		consume( pos_sep+1 )
+	else:
+		while !is_new_line_or_white(file_content[0]):
+			ret += file_content[0]
+			consume(1)
+	
+	consume_white_or_end_line()
 	
 	return ret
+
+func consume_white_space() -> void:
+	while is_white_space(file_content[0]):
+		consume(1)
+
+func consume_end_line() -> void:
+	while is_new_line(file_content[0]):
+		consume(1)
+
+func consume_white_or_end_line() -> void:
+	while is_new_line_or_white(file_content[0]):
+		consume(1)
+
+# Consumes next word
+# (consumes white space,
+# consumes whatever is next until it hits whitespace again,
+# and then consumes white space again)
+func consume_word() -> void:
+	consume_white_or_end_line()
+	while file_content[0] != "\n" and file_content[0] != " ":
+		consume(1)
+	consume_white_or_end_line()
 
 # LOAD PLY
 
 func load_ply() -> void:
+	var n_vertices
+	var n_prop_verts
+	var x_pos
+	var y_pos
+	var z_pos
+	var n_faces
 	
-	# Check next line is the ascii formar indicator
-	if !check_and_consume_head("format ascii"):
+	# Check next comes the format indicator
+	if !check_and_consume_head("format"):
+		print("Missing format")
+		return
+	
+	# Check next is the ascii formar indicator
+	if !check_and_consume_head("ascii"):
 		print("Only ascii .ply files are allowed")
 		return
 	
-	# Consume rest of the line
-	consume_line()
+	# Consume version
+	consume_word()
 	
 	# Consume next comments
 	consume_ply_comments()
@@ -128,12 +193,17 @@ func load_ply() -> void:
 	# VERTICES section
 	
 	# Check next line stores number of vertices
-	if !check_and_consume_head("element vertex "):
+	if !check_and_consume_head("element"):
+		print("Vertex definition not found")
+		return
+	
+	# Check next line stores number of vertices
+	if !check_and_consume_head("vertex"):
 		print("Vertex definition not found")
 		return
 	
 	# Check, store and consume number of vertices
-	var n_vertices = get_and_consume_head()
+	n_vertices = get_and_consume_head()
 	if !n_vertices.is_valid_int():
 		error_ply()
 		print("Number of vertices not found")
@@ -145,24 +215,25 @@ func load_ply() -> void:
 	
 	# Process properties
 	# Make note of where in the file the x, y, z are located
-	var x_pos = -1
-	var y_pos = -1
-	var z_pos = -1
+	x_pos = -1
+	y_pos = -1
+	z_pos = -1
 	
-	var cur_pos = 0
-	while check_head("property "):
-		consume_until(" ", 2)
+	n_prop_verts = 0
+	while check_head("property"):
+		consume("property".length())
+		consume_word()
 		
-		if check_head("x"): x_pos = cur_pos
-		elif check_head("y"): y_pos = cur_pos
-		elif check_head("z"): z_pos = cur_pos
+		if file_content[0] == "x" : x_pos = n_prop_verts
+		elif file_content[0] == "y" : y_pos = n_prop_verts
+		elif file_content[0] == "z" : z_pos = n_prop_verts
 		
-		consume_line()
+		consume_word()
 		
 		# Consume next comments
 		consume_ply_comments()
 		
-		cur_pos += 1
+		n_prop_verts += 1
 	
 	if x_pos == -1:
 		error_ply()
@@ -184,13 +255,18 @@ func load_ply() -> void:
 	
 	# FACES section
 	
-	# Check next line stores number of faces
-	if !check_and_consume_head("element face "):
+	# Check next is a definition
+	if !check_and_consume_head("element"):
+		print("Definition of faces not found")
+		return
+	
+	# Check it is for faces
+	if !check_and_consume_head("face"):
 		print("Definition of faces not found")
 		return
 	
 	# Check, store and consume number of vertices
-	var n_faces = get_and_consume_head()
+	n_faces = get_and_consume_head()
 	if !n_faces.is_valid_int():
 		error_ply()
 		print("Number of faces not found")
@@ -201,32 +277,83 @@ func load_ply() -> void:
 	consume_ply_comments()
 	
 	# Check, process and consume property list
-	if !check_and_consume_head("property list "):
-		print("Property of faces not found")
+	if !check_and_consume_head("property"):
+		print("Property list of faces not found")
+		return
+	
+	if !check_and_consume_head("list"):
+		print("Property list of faces not found")
 		return
 	
 	# Consume type of elements
 	# Will check later if they are ints
-	consume_until(" ", 2)
+	consume_word()
+	consume_word()
 	
 	# Check, process and consume vertex_indices or vertex_index
-	if !check_head("vertex_indices\n") and !check_head("vertex_index\n"):
+	if !check_head("vertex_indices") and !check_head("vertex_index"):
 		error_ply()
 		print("Property of faces does not contain vertex indices or vertex index")
 		return
-	consume_line()
+	consume_word()
 	
+	# Consume next comments
 	consume_ply_comments()
 	
-	if !check_and_consume_head("end_header\n"):
+	# TODO: allow more element definitions
+	# TODO: allow edges
+	
+	# Check and consume end_header
+	if !check_and_consume_head("end_header"):
 		print("end_header not found")
 		return
 	
-	print(file_content)
+	# VERTEX LIST
+	
+	# n_vertices
+	# n_prop_verts
+	# x_pos
+	# y_pos
+	# z_pos
+	# n_faces
+	# n_prop_verts
+	
+	for i in n_vertices:
+		vertices.append(vertex_scene.instantiate())
+		
+		# Get vertex coordinates
+		var x
+		var y
+		var z
+		
+		for j in n_prop_verts:
+			var cur = get_and_consume_head()
+			
+			if j == x_pos or j == y_pos or j == z_pos:
+				if !cur.is_valid_float():
+					error_ply()
+					if j == x_pos: print("Invalid x coordinate %s in vertex %s" % [cur, i])
+					if j == y_pos: print("Invalid y coordinate %s in vertex %s" % [cur, i])
+					if j == z_pos: print("Invalid z coordinate %s in vertex %s" % [cur, i])
+					return
+				
+				if j == x_pos: x = cur.to_float()
+				if j == y_pos: y = cur.to_float()
+				if j == z_pos: z = cur.to_float()
+		
+		vertices[-1].init([x,y,z])
+		add_child(vertices[-1])
 
 func consume_ply_comments() -> void:
+	consume_white_or_end_line()
+	
 	while check_head("comment"):
+		consume("comment".length())
+		consume_white_or_end_line()
 		consume_line()
+		consume_white_or_end_line()
+	
+	consume_white_or_end_line()
 
 func error_ply() -> void:
 	print("ERROR: cannot open .ply file")
