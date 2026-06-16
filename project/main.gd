@@ -14,7 +14,11 @@ func _ready() -> void:
 		view = load("res://view/3d/main3d/main3d.tscn").instantiate()
 		add_child(view)
 	
+	var file = FileAccess.open("../../ant.ply", FileAccess.READ)
+	var content = file.get_as_text()
+	
 	var body = body_scene.instantiate()
+	body.load_file(content)
 	add_child(body)
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
