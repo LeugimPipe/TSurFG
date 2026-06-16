@@ -25,7 +25,7 @@ func _ready() -> void:
 
 func calc_all_ev_vectors() -> void:
 	calc_forces()
-	restore_constants()
+	# restore_constants()
 
 func restore_constants() -> void:
 	pass
@@ -45,8 +45,7 @@ func iterate() -> void:
 	for i in vertices.size():
 		vertices[i].coords = [ vertices[i].coords[0] + 0.2*forces[i][0].coords[0], vertices[i].coords[1] + 0.2*forces[i][0].coords[1] ]
 	
-	restore_constants()
-	calc_forces()
+	calc_all_ev_vectors()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

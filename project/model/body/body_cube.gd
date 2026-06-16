@@ -199,9 +199,13 @@ func calc_force_vertex(i: int) -> void:
 		forces[i][0].coords = [ forces[i][0].coords[0] + force_link.coords[0], forces[i][0].coords[1] + force_link.coords[1], forces[i][0].coords[2] + force_link.coords[2] ]
 
 func alter_coordinates() -> void:
+	# Gradient area force
 	for i in vertices.size():
 		vertices[i].coords = [ vertices[i].coords[0] + TIME_STEP*forces[i][0].coords[0], vertices[i].coords[1] + TIME_STEP*forces[i][0].coords[1], vertices[i].coords[2] + TIME_STEP*forces[i][0].coords[2] ]
-
+	
+	restore_constants()
+	
+	# Restoration vectors
 	for i in vertices.size():
 		vertices[i].coords = [ vertices[i].coords[0] + forces[i][1].coords[0], vertices[i].coords[1] + forces[i][1].coords[1], vertices[i].coords[2] + forces[i][1].coords[2] ]
 
@@ -227,19 +231,19 @@ func iterate() -> void:
 	TIME_STEP = s1
 	alter_coordinates()
 	var s1_area = get_total_area()
-	# print("Total area %s: %s" % [s1, s1_area])
+	print("Total area %s: %s" % [s1, s1_area])
 	
 	restore_coords()
 	TIME_STEP = s0
 	alter_coordinates()
 	var s0_area = get_total_area()
-	# print("Total area %s: %s" % [s0, s0_area])
+	print("Total area %s: %s" % [s0, s0_area])
 	
 	restore_coords()
 	TIME_STEP = s2
 	alter_coordinates()
 	var s2_area = get_total_area()
-	# print("Total area %s: %s" % [s2, s2_area])
+	print("Total area %s: %s" % [s2, s2_area])
 	
 	while (s1_area > s2_area):
 		s0 = s1
@@ -422,7 +426,14 @@ func calc_volume_gradient() -> void:
 		calc_volume_gradient_vertex(i)
 
 # CONSTANT VOLUME 8
+# Transforms previously calculated volume gradients
+# (stored in forces[i][1])
+# into the restoration vectors
 func restore_constants() -> void:
+	
+	calc_volume_gradient()
+	
+	calc_volume_gradient_product()
 	
 	var delta = get_volume() - VOLUME
 	var scale = -delta/volume_dot_product
