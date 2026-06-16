@@ -1,5 +1,7 @@
 extends Node
 
+var id
+
 var edge0
 var edge1
 var edge2
@@ -14,8 +16,10 @@ var v2
 
 var view
 
-func init( _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false) -> void:
+func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false) -> void:
 	if view != null: view.queue_free()
+	
+	id = _id
 	edge0 = _edge0
 	edge1 = _edge1
 	edge2 = _edge2
@@ -36,29 +40,29 @@ func init( _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool 
 	# check edges form a closed loop
 	if inversee0:
 		if v1 != edge0.tail:
-			print("ERROR: head of edge 0 of facet is different from tail of edge 1")
+			print("ERROR: in facet %s head of edge 0 is different from tail of edge 1" % id)
 			return
 	else:
 		if v1 != edge0.head:
-			print("ERROR: head of edge 0 of facet is different from tail of edge 1")
+			print("ERROR: in facet %s head of edge 0 is different from tail of edge 1" % id)
 			return
 	
 	if inversee1:
 		if v2 != edge1.tail:
-			print("ERROR: head of edge 1 of facet is different from tail of edge 2")
+			print("ERROR: in facet %s head of edge 1 is different from tail of edge 2" % id)
 			return
 	else:
 		if v2 != edge1.head:
-			print("ERROR: head of edge 1 of facet is different from tail of edge 2")
+			print("ERROR: in facet %s head of edge 1 is different from tail of edge 2" % id)
 			return
 	
 	if inversee2:
 		if v0 != edge2.tail:
-			print("ERROR: head of edge 2 of facet is different from tail of edge 0")
+			print("ERROR: in facet %s head of edge 2 is different from tail of edge 0" % id)
 			return
 	else:
 		if v0 != edge2.head:
-			print("ERROR: head of edge 2 of facet is different from tail of edge 0")
+			print("ERROR: in facet %s head of edge 2 is different from tail of edge 0" % id)
 			return
 	
 	if globals.AMBIENT_DIMENSION == 2:
@@ -72,20 +76,20 @@ func init( _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool 
 
 # TODO: hacer mejor con el tipo futuro VectorN
 func area() -> float:
-	var v0 = get_v0().get_as_vector()
-	var v1 = get_v1().get_as_vector()
-	var v2 = get_v2().get_as_vector()
+	var v0_vector = get_v0().get_as_vector()
+	var v1_vector = get_v1().get_as_vector()
+	var v2_vector = get_v2().get_as_vector()
 	
-	return (v1-v0).cross(v2-v1).length()/2
+	return (v1_vector-v0_vector).cross(v2_vector-v1_vector).length()/2
 
 func volume_contribution() -> float:
 	var ret: float = 0.
 	
-	var v0 = get_v0().get_as_vector()
-	var v1 = get_v1().get_as_vector()
-	var v2 = get_v2().get_as_vector()
+	var v0_vector = get_v0().get_as_vector()
+	var v1_vector = get_v1().get_as_vector()
+	var v2_vector = get_v2().get_as_vector()
 	
-	ret = v0.dot(v1.cross(v2))
+	ret = v0_vector.dot(v1_vector.cross(v2_vector))
 	
 	return ret/6.
 

@@ -23,12 +23,11 @@ enum {NONE, PLY}
 var file_type = NONE
 
 func init() -> void:
-	pass
+	calc_all_ev_vectors()
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	init()
-	calc_all_ev_vectors()
+	pass
 
 func calc_all_ev_vectors() -> void:
 	calc_forces()
@@ -56,7 +55,7 @@ func iterate() -> void:
 	calc_forces()
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if Input.is_action_just_pressed("iterate"):
 		iterate()
 	if Input.is_action_just_pressed("refine"):
@@ -77,6 +76,8 @@ func load_file(content: String) -> void:
 	else:
 		print("ERROR: unrecognized file type")
 		return
+	
+	init()
 
 # FILE PROCESS UTILS
 
@@ -134,7 +135,7 @@ func get_and_consume_head(separator: String = "") -> String:
 		ret = file_content.left( pos_sep )
 		consume( pos_sep+1 )
 	else:
-		while !is_new_line_or_white(file_content[0]):
+		while file_content.length() > 0 and !is_new_line_or_white(file_content[0]):
 			ret += file_content[0]
 			consume(1)
 	
@@ -143,15 +144,15 @@ func get_and_consume_head(separator: String = "") -> String:
 	return ret
 
 func consume_white_space() -> void:
-	while is_white_space(file_content[0]):
+	while file_content.length() > 0 and is_white_space(file_content[0]):
 		consume(1)
 
 func consume_end_line() -> void:
-	while is_new_line(file_content[0]):
+	while file_content.length() > 0 and is_new_line(file_content[0]):
 		consume(1)
 
 func consume_white_or_end_line() -> void:
-	while is_new_line_or_white(file_content[0]):
+	while file_content.length() > 0 and is_new_line_or_white(file_content[0]):
 		consume(1)
 
 # Consumes next word
@@ -160,7 +161,7 @@ func consume_white_or_end_line() -> void:
 # and then consumes white space again)
 func consume_word() -> void:
 	consume_white_or_end_line()
-	while file_content[0] != "\n" and file_content[0] != " ":
+	while file_content.length() > 0 and file_content[0] != "\n" and file_content[0] != " ":
 		consume(1)
 	consume_white_or_end_line()
 
@@ -257,19 +258,19 @@ func load_ply() -> void:
 	
 	# Check next is a definition
 	if !check_and_consume_head("element"):
-		print("Definition of faces not found")
+		print("Invalid definition of faces")
 		return
 	
 	# Check it is for faces
 	if !check_and_consume_head("face"):
-		print("Definition of faces not found")
+		print("Invalid definition of faces")
 		return
 	
 	# Check, store and consume number of vertices
 	n_faces = get_and_consume_head()
 	if !n_faces.is_valid_int():
 		error_ply()
-		print("Number of faces not found")
+		print("Invalid number of faces")
 		return
 	n_faces = n_faces.to_int()
 	
@@ -332,17 +333,73 @@ func load_ply() -> void:
 			if j == x_pos or j == y_pos or j == z_pos:
 				if !cur.is_valid_float():
 					error_ply()
-					if j == x_pos: print("Invalid x coordinate %s in vertex %s" % [cur, i])
-					if j == y_pos: print("Invalid y coordinate %s in vertex %s" % [cur, i])
-					if j == z_pos: print("Invalid z coordinate %s in vertex %s" % [cur, i])
+					if j == x_pos: print("Invalid x coordinate %s for vertex %s" % [cur, i])
+					if j == y_pos: print("Invalid y coordinate %s for vertex %s" % [cur, i])
+					if j == z_pos: print("Invalid z coordinate %s for vertex %s" % [cur, i])
 					return
 				
 				if j == x_pos: x = cur.to_float()
 				if j == y_pos: y = cur.to_float()
 				if j == z_pos: z = cur.to_float()
 		
-		vertices[-1].init([x,y,z])
+		vertices[-1].init(i, [x,y,z])
 		add_child(vertices[-1])
+	
+	# FACET LIST
+	for i in n_faces:
+		# Get number of vertices
+		var n_vertex = get_and_consume_head()
+		if !n_vertex.is_valid_int():
+			error_ply()
+			print("Invalid number of vertices %s for facet %s" % [n_vertex, i])
+			return
+		n_vertex = n_vertex.to_int()
+		
+		# Don't allow more than 3 vertices per face
+		if n_vertex != 3:
+			error_ply()
+			print("Invalid number of vertices %s for facet %s" % [n_vertex, i])
+			print("Only 3 vertices per face are allowed")
+		
+		var v_indices : Array
+		v_indices.resize(n_vertex)
+		v_indices.fill(-1)
+		
+		# Get indices of vertices
+		for j in n_vertex:
+			v_indices[j] = get_and_consume_head()
+			if !v_indices[j].is_valid_int():
+				error_ply()
+				print("Invalid vertex %s for facet %s" % [v_indices[j], i])
+				return
+			v_indices[j] = v_indices[j].to_int()
+		
+		for j in n_vertex:
+			if v_indices[j] == -1:
+				error_ply()
+				print("Invalid %sth index for facet %s" % [j, i])
+				return
+		
+		# Add edges
+		# Store indices of edges of facet
+		var e_indices : Array
+		e_indices.resize(3)
+		e_indices.fill(-1)
+		
+		for j in 3:
+			var edge_id = vertices[ v_indices[j] ].get_edge_index_from_v_id( v_indices[ (j+1)%3 ] )
+			if edge_id == INF:
+				edges.append(edge_scene.instantiate())
+				edges[-1].init( edges.size()-1, vertices[ v_indices[ j%3 ] ], vertices[ v_indices[ (j+1) %3 ] ] )
+				add_child(edges[-1])
+				e_indices[j] = edges.size()-1
+			else:
+				e_indices[j] = edge_id
+		
+		# Add facet
+		facets.append(facet_scene.instantiate())
+		facets[-1].init( i, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
+		add_child(facets[-1])
 
 func consume_ply_comments() -> void:
 	consume_white_or_end_line()
