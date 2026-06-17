@@ -22,12 +22,76 @@ var file_content : String
 enum {NONE, PLY}
 var file_type = NONE
 
-func init() -> void:
-	calc_all_ev_vectors()
+signal cam_info_calculated
+signal cam_center_calculated
+
+# VectorN
+var center : Array
+var radius : float
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	pass
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(_delta: float) -> void:
+	if Input.is_action_just_pressed("iterate"):
+		iterate()
+	if Input.is_action_just_pressed("refine"):
+		refine()
+	if Input.is_action_just_pressed("cam_reset"):
+		cam_info_calculated.emit(center, radius)
+	if Input.is_action_just_pressed("cam_focus"):
+		cam_center_calculated.emit(center)
+
+# Functions after initialization
+func init() -> void:
+	calc_characteristics()
+	
+	var main = get_node("..")
+	await main.child_entered_tree
+	var main3d = get_node("../Main3D")
+	await main3d.ready
+	cam_info_calculated.emit(center, radius)
+
+func calc_characteristics() -> void:
+	calc_center()
+	calc_radius()
+	calc_all_ev_vectors()
+
+func calc_center() -> void:
+	var ret : Array
+	ret.resize(globals.AMBIENT_DIMENSION)
+	ret.fill(0)
+	
+	for v in vertices:
+		for i in globals.AMBIENT_DIMENSION:
+			if i < v.coords.size():
+				ret[i] += v.coords[i]
+	
+	for i in globals.AMBIENT_DIMENSION:
+		ret[i] /= vertices.size()
+	
+	center = ret
+
+func calc_radius() -> void:
+	var ret = 0.
+	
+	if center.is_empty():
+		push_error("Cannot calculate radius: center not calculated")
+		return
+	
+	for v in vertices:
+		var dist_center : float = 0.
+		for i in globals.AMBIENT_DIMENSION:
+			if i < v.coords.size(): dist_center += (v.coords[i] - center[i]) * (v.coords[i] - center[i])
+			else: dist_center += center[i] * center[i]
+		dist_center = sqrt(dist_center)
+		
+		if ret < dist_center:
+			ret = dist_center
+	
+	radius = ret
 
 func calc_all_ev_vectors() -> void:
 	calc_forces()
@@ -42,6 +106,7 @@ func set_forces_zero() -> void:
 		var zeroforce = force_scene.instantiate()
 		zeroforce.init([0,0])
 		forces[i] = [zeroforce]
+		add_child(zeroforce)
 
 func calc_forces() -> void:
 	set_forces_zero()
@@ -53,13 +118,6 @@ func iterate() -> void:
 	
 	restore_constants()
 	calc_forces()
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta: float) -> void:
-	if Input.is_action_just_pressed("iterate"):
-		iterate()
-	if Input.is_action_just_pressed("refine"):
-		refine()
 
 func refine() -> void:
 	pass
@@ -74,8 +132,10 @@ func load_file(content: String) -> void:
 		file_type = PLY
 		load_ply()
 	else:
-		print("ERROR: unrecognized file type")
+		push_error("Unrecognized file type")
 		return
+	
+	# TODO: check face orientation compatibility
 	
 	init()
 
@@ -159,11 +219,12 @@ func consume_white_or_end_line() -> void:
 # (consumes white space,
 # consumes whatever is next until it hits whitespace again,
 # and then consumes white space again)
-func consume_word() -> void:
-	consume_white_or_end_line()
-	while file_content.length() > 0 and file_content[0] != "\n" and file_content[0] != " ":
-		consume(1)
-	consume_white_or_end_line()
+func consume_word(n: int = 1) -> void:
+	for i in n:
+		consume_white_or_end_line()
+		while file_content.length() > 0 and file_content[0] != "\n" and file_content[0] != " ":
+			consume(1)
+		consume_white_or_end_line()
 
 # LOAD PLY
 
@@ -177,12 +238,12 @@ func load_ply() -> void:
 	
 	# Check next comes the format indicator
 	if !check_and_consume_head("format"):
-		print("Missing format")
+		push_error("Missing format")
 		return
 	
 	# Check next is the ascii formar indicator
 	if !check_and_consume_head("ascii"):
-		print("Only ascii .ply files are allowed")
+		push_error("Only ascii .ply files are allowed")
 		return
 	
 	# Consume version
@@ -195,19 +256,19 @@ func load_ply() -> void:
 	
 	# Check next line stores number of vertices
 	if !check_and_consume_head("element"):
-		print("Vertex definition not found")
+		push_error("Vertex definition not found")
 		return
 	
 	# Check next line stores number of vertices
 	if !check_and_consume_head("vertex"):
-		print("Vertex definition not found")
+		push_error("Vertex definition not found")
 		return
 	
 	# Check, store and consume number of vertices
 	n_vertices = get_and_consume_head()
 	if !n_vertices.is_valid_int():
 		error_ply()
-		print("Number of vertices not found")
+		push_error("Number of vertices not found")
 		return
 	n_vertices = n_vertices.to_int()
 	
@@ -238,17 +299,17 @@ func load_ply() -> void:
 	
 	if x_pos == -1:
 		error_ply()
-		print("Definition of x coordinate not found")
+		push_error("Definition of x coordinate not found")
 		return
 	
 	if y_pos == -1:
 		error_ply()
-		print("Definition of y coordinate not found")
+		push_error("Definition of y coordinate not found")
 		return
 	
 	if z_pos == -1:
 		error_ply()
-		print("Definition of z coordinate not found")
+		push_error("Definition of z coordinate not found")
 		return
 	
 	# Consume next comments
@@ -258,19 +319,19 @@ func load_ply() -> void:
 	
 	# Check next is a definition
 	if !check_and_consume_head("element"):
-		print("Invalid definition of faces")
+		push_error("Expected definition of element")
 		return
 	
 	# Check it is for faces
 	if !check_and_consume_head("face"):
-		print("Invalid definition of faces")
+		push_error("Invalid definition of faces")
 		return
 	
 	# Check, store and consume number of vertices
 	n_faces = get_and_consume_head()
 	if !n_faces.is_valid_int():
 		error_ply()
-		print("Invalid number of faces")
+		push_error("Invalid number of faces")
 		return
 	n_faces = n_faces.to_int()
 	
@@ -279,34 +340,57 @@ func load_ply() -> void:
 	
 	# Check, process and consume property list
 	if !check_and_consume_head("property"):
-		print("Property list of faces not found")
+		push_error("Expected property of faces")
 		return
 	
 	if !check_and_consume_head("list"):
-		print("Property list of faces not found")
+		push_error("Property vertex list of faces not found")
 		return
 	
 	# Consume type of elements
 	# Will check later if they are ints
-	consume_word()
-	consume_word()
+	consume_word(2)
 	
 	# Check, process and consume vertex_indices or vertex_index
 	if !check_head("vertex_indices") and !check_head("vertex_index"):
 		error_ply()
-		print("Property of faces does not contain vertex indices or vertex index")
+		push_error("Property of faces does not contain vertex indices or vertex index")
 		return
 	consume_word()
 	
 	# Consume next comments
 	consume_ply_comments()
 	
-	# TODO: allow more element definitions
 	# TODO: allow edges
+	
+	# Allow more element definitions
+	# Will ignore them
+	while check_head("element"):
+		# Consume "element", element name and number of elements
+		consume_word(3)
+		
+		# Consume any comments after element definition
+		consume_ply_comments()
+		
+		# Consume any property definitions
+		while check_head("property"):
+			# Consume "property"
+			consume_word()
+			
+			# Different processing if it's a list or not
+			if check_head("list"):
+				# Consume "list", the two types and the index name
+				consume_word(4)
+			else:
+				# Consume type and name
+				consume_word(2)
+			
+			# Consume any comments after property definition
+			consume_ply_comments()
 	
 	# Check and consume end_header
 	if !check_and_consume_head("end_header"):
-		print("end_header not found")
+		push_error("end_header not found")
 		return
 	
 	# VERTEX LIST
@@ -333,9 +417,9 @@ func load_ply() -> void:
 			if j == x_pos or j == y_pos or j == z_pos:
 				if !cur.is_valid_float():
 					error_ply()
-					if j == x_pos: print("Invalid x coordinate %s for vertex %s" % [cur, i])
-					if j == y_pos: print("Invalid y coordinate %s for vertex %s" % [cur, i])
-					if j == z_pos: print("Invalid z coordinate %s for vertex %s" % [cur, i])
+					if j == x_pos: push_error("Invalid x coordinate %s for vertex %s" % [cur, i])
+					if j == y_pos: push_error("Invalid y coordinate %s for vertex %s" % [cur, i])
+					if j == z_pos: push_error("Invalid z coordinate %s for vertex %s" % [cur, i])
 					return
 				
 				if j == x_pos: x = cur.to_float()
@@ -348,58 +432,78 @@ func load_ply() -> void:
 	# FACET LIST
 	for i in n_faces:
 		# Get number of vertices
-		var n_vertex = get_and_consume_head()
-		if !n_vertex.is_valid_int():
+		var n_vertices_face = get_and_consume_head()
+		if !n_vertices_face.is_valid_int():
 			error_ply()
-			print("Invalid number of vertices %s for facet %s" % [n_vertex, i])
+			push_error("Invalid number of vertices %s for facet %s" % [n_vertices_face, i])
 			return
-		n_vertex = n_vertex.to_int()
+		n_vertices_face = n_vertices_face.to_int()
 		
-		# Don't allow more than 3 vertices per face
-		if n_vertex != 3:
+		if n_vertices_face != 3 and n_vertices_face != 4:
 			error_ply()
-			print("Invalid number of vertices %s for facet %s" % [n_vertex, i])
-			print("Only 3 vertices per face are allowed")
+			push_error("Invalid number of vertices %s for facet %s" % [n_vertices_face, i])
+			push_error("Only 3 or 4 vertices per face are allowed")
+			return
 		
 		var v_indices : Array
-		v_indices.resize(n_vertex)
+		v_indices.resize(n_vertices_face)
 		v_indices.fill(-1)
 		
 		# Get indices of vertices
-		for j in n_vertex:
+		for j in n_vertices_face:
 			v_indices[j] = get_and_consume_head()
 			if !v_indices[j].is_valid_int():
 				error_ply()
-				print("Invalid vertex %s for facet %s" % [v_indices[j], i])
+				push_error("Invalid vertex %s for facet %s" % [v_indices[j], i])
 				return
 			v_indices[j] = v_indices[j].to_int()
 		
-		for j in n_vertex:
+		for j in n_vertices_face:
 			if v_indices[j] == -1:
 				error_ply()
-				print("Invalid %sth index for facet %s" % [j, i])
+				push_error("Invalid %sth index for facet %s" % [j, i])
 				return
 		
 		# Add edges
 		# Store indices of edges of facet
 		var e_indices : Array
-		e_indices.resize(3)
+		var n_edges
+		n_edges = 3
+		if n_vertices_face == 4: n_edges = 5
+		e_indices.resize(n_edges)
 		e_indices.fill(-1)
 		
-		for j in 3:
-			var edge_id = vertices[ v_indices[j] ].get_edge_index_from_v_id( v_indices[ (j+1)%3 ] )
+		for j in n_edges:
+			# If it exists, get the id of the edge connecting these two vertices
+			var edge_id
+			if j == 4: edge_id = vertices[ v_indices[0] ].get_edge_index_from_v_id( v_indices[2] )
+			else: edge_id = vertices[ v_indices[j] ].get_edge_index_from_v_id( v_indices[ (j+1) % n_vertices_face ] )
+			
+			# If it doesn't exist, we create it
+			# In both cases we make note of the edge id
 			if edge_id == INF:
 				edges.append(edge_scene.instantiate())
-				edges[-1].init( edges.size()-1, vertices[ v_indices[ j%3 ] ], vertices[ v_indices[ (j+1) %3 ] ] )
+				if j == 4: edges[-1].init( edges.size()-1, vertices[ v_indices[ 0 ] ], vertices[ v_indices[ 2 ] ] )
+				else: edges[-1].init( edges.size()-1, vertices[ v_indices[ j ] ], vertices[ v_indices[ (j+1) % n_vertices_face ] ] )
 				add_child(edges[-1])
 				e_indices[j] = edges.size()-1
 			else:
 				e_indices[j] = edge_id
 		
 		# Add facet
-		facets.append(facet_scene.instantiate())
-		facets[-1].init( i, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
-		add_child(facets[-1])
+		if n_vertices_face == 3:
+			facets.append(facet_scene.instantiate())
+			facets[-1].init( i, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
+			add_child(facets[-1])
+			
+		elif n_vertices_face == 4:
+			facets.append(facet_scene.instantiate())
+			facets[-1].init( i*2, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[4]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[4] > 0 )
+			add_child(facets[-1])
+			
+			facets.append(facet_scene.instantiate())
+			facets[-1].init( i*2+1, edges[ abs(e_indices[2]) ], edges[ abs(e_indices[3]) ], edges[ abs(e_indices[4]) ], e_indices[2] < 0, e_indices[3] < 0, e_indices[4] < 0 )
+			add_child(facets[-1])
 
 func consume_ply_comments() -> void:
 	consume_white_or_end_line()
@@ -413,4 +517,4 @@ func consume_ply_comments() -> void:
 	consume_white_or_end_line()
 
 func error_ply() -> void:
-	print("ERROR: cannot open .ply file")
+	push_error("Cannot open .ply file")

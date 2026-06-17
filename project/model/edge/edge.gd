@@ -5,8 +5,8 @@ var id
 var tail
 var head
 
-var tail_index
-var head_index
+var tail_id
+var head_id
 
 var view
 
@@ -16,8 +16,8 @@ func init(_id = -1, _tail = null, _head = null) -> void:
 	tail = _tail
 	head = _head
 	
-	tail_index = tail.get_id()
-	head_index = head.get_id()
+	tail_id = tail.get_id()
+	head_id = head.get_id()
 	
 	tail.connect_edge(self)
 	head.connect_edge(self, false)

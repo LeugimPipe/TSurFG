@@ -40,29 +40,29 @@ func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee
 	# check edges form a closed loop
 	if inversee0:
 		if v1 != edge0.tail:
-			print("ERROR: in facet %s head of edge 0 is different from tail of edge 1" % id)
+			push_error("In facet %s head of edge 0 is different from tail of edge 1" % id)
 			return
 	else:
 		if v1 != edge0.head:
-			print("ERROR: in facet %s head of edge 0 is different from tail of edge 1" % id)
+			push_error("In facet %s head of edge 0 is different from tail of edge 1" % id)
 			return
 	
 	if inversee1:
 		if v2 != edge1.tail:
-			print("ERROR: in facet %s head of edge 1 is different from tail of edge 2" % id)
+			push_error("In facet %s head of edge 1 is different from tail of edge 2" % id)
 			return
 	else:
 		if v2 != edge1.head:
-			print("ERROR: in facet %s head of edge 1 is different from tail of edge 2" % id)
+			push_error("In facet %s head of edge 1 is different from tail of edge 2" % id)
 			return
 	
 	if inversee2:
 		if v0 != edge2.tail:
-			print("ERROR: in facet %s head of edge 2 is different from tail of edge 0" % id)
+			push_error("In facet %s head of edge 2 is different from tail of edge 0" % id)
 			return
 	else:
 		if v0 != edge2.head:
-			print("ERROR: in facet %s head of edge 2 is different from tail of edge 0" % id)
+			push_error("In facet %s head of edge 2 is different from tail of edge 0" % id)
 			return
 	
 	if globals.AMBIENT_DIMENSION == 2:

@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://b40kc2jfipxsm"]
 
 [ext_resource type="Script" uid="uid://codnasljjwcpg" path="res://view/3d/main3d/main3d.gd" id="1_fxs24"]
+[ext_resource type="PackedScene" uid="uid://bjq3ee6fwdepl" path="res://view/3d/camera_gimbal/camera_gimbal.tscn" id="2_3h3l2"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_7dm0k"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -25,6 +26,4 @@ shadow_enabled = true
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=481792495]
 environment = SubResource("Environment_0xm2m")
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=1713691439]
-transform = Transform3D(0.77112496, -0.11495677, 0.62621963, 0.00019827485, 0.9836079, 0.18031947, -0.63668394, -0.13892496, 0.7585076, 23.863796, 7.666053, 28.918613)
-fov = 44.482338
+[node name="CameraGimbal" parent="." unique_id=835997475 instance=ExtResource("2_3h3l2")]

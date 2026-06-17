@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://bjq3ee6fwdepl"]
+
+[ext_resource type="Script" uid="uid://dmv5nperqadm3" path="res://view/3d/camera_gimbal/camera_gimbal.gd" id="1_ylxci"]
+
+[node name="CameraGimbal" type="Node3D" unique_id=835997475]
+script = ExtResource("1_ylxci")
+
+[node name="GimbalInner" type="Node3D" parent="." unique_id=274353159]
+
+[node name="Camera3D" type="Camera3D" parent="GimbalInner" unique_id=989144354]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4)

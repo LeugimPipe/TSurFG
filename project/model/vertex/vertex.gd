@@ -1,4 +1,6 @@
 extends Node
+# TODO: probablemente no deberia ser un Node
+# Sino algo mas ligero
 
 var id : int
 
@@ -9,6 +11,13 @@ var coords : Array = []: set = set_coords
 var saved_coords : Array = []
 var fixed : bool = false
 
+signal coords_changed
+
+func set_coords(value : Array):
+	coords = value.duplicate()
+	if !globals.CALCULATING_STEP:
+		coords_changed.emit(coords)
+
 # Stores the indices of the connected vertices
 # Same order as con_edges
 var con_vertices : Array = []
@@ -17,13 +26,6 @@ var con_vertices : Array = []
 # Stores the signed index
 # Sign is positive if it's the tail, negative otherwise
 var con_edges : Array = []
-
-signal coords_changed
-
-func set_coords(value : Array):
-	coords = value.duplicate()
-	if !globals.CALCULATING_STEP:
-		coords_changed.emit(coords)
 
 var view
 
@@ -63,7 +65,7 @@ func connect_edge(edge, tail: bool = true) -> void:
 		if e_id == 0: e_id = -0.1
 	
 	if v_id in con_vertices:
-		print("WARNING: vertices %s and %s are already joined by an edge" % [get_id(), v_id])
+		push_warning("WARNING: vertices %s and %s are already joined by an edge" % [get_id(), v_id])
 	con_vertices.append(v_id)
 	con_edges.append(e_id)
 
