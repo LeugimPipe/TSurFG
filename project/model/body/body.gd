@@ -62,15 +62,26 @@ func calc_characteristics() -> void:
 func calc_center() -> void:
 	var ret : Array
 	ret.resize(globals.AMBIENT_DIMENSION)
-	ret.fill(0)
+	ret.fill(0.)
+	
+	var max : Array
+	max.resize(globals.AMBIENT_DIMENSION)
+	max.fill(0.)
+	
+	var min : Array
+	min.resize(globals.AMBIENT_DIMENSION)
+	min.fill(0.)
 	
 	for v in vertices:
 		for i in globals.AMBIENT_DIMENSION:
 			if i < v.coords.size():
-				ret[i] += v.coords[i]
+				if max[i] < v.coords[i]:
+					max[i] = v.coords[i]
+				if min[i] > v.coords[i]:
+					min[i] = v.coords[i]
 	
 	for i in globals.AMBIENT_DIMENSION:
-		ret[i] /= vertices.size()
+		ret[i] = (max[i] + min[i])/2.
 	
 	center = ret
 

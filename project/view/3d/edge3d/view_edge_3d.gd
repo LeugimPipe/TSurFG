@@ -3,6 +3,12 @@ extends Node3D
 var tail : Vector3 = Vector3.ZERO
 var head : Vector3 = Vector3.ZERO
 
+func _ready() -> void:
+	await get_node("/root/Main").child_entered_tree
+	var cam = get_node("/root/Main/Main3D/CameraGimbal")
+	await cam.ready
+	#cam.zoom_changed.connect(_on_cam_zoom_changed)
+
 func init(_tail, _head) -> void:
 	tail.x = _tail.coords[0]
 	tail.y = _tail.coords[1]
@@ -23,17 +29,17 @@ func on_tail_changed(coords : Array) -> void:
 	tail.y = coords[1]
 	if coords.size() > 2:
 		tail.z = coords[2]
-
-	draw()
 	
+	draw()
+
 func on_head_changed(coords : Array) -> void:
 	head.x = coords[0]
 	head.y = coords[1]
 	if coords.size() > 2:
 		head.z = coords[2]
-
-	draw()
 	
+	draw()
+
 func draw() -> void:
 	position = tail
 	
@@ -53,3 +59,7 @@ func draw() -> void:
 		lat = segment.angle_to(Vector3(segment.x, 0 , segment.z))
 	if segment.y < 0: lat = -lat
 	$Gimbal.rotation.z = lat
+
+func _on_cam_zoom_changed(zoom : float) -> void:
+	$Gimbal/EdgeVis.mesh.top_radius = min(zoom * 0.025, 0.025)
+	$Gimbal/EdgeVis.mesh.bottom_radius = min(zoom * 0.025, 0.025)
