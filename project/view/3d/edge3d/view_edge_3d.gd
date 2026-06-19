@@ -4,10 +4,7 @@ var tail : Vector3 = Vector3.ZERO
 var head : Vector3 = Vector3.ZERO
 
 func _ready() -> void:
-	await get_node("/root/Main").child_entered_tree
-	var cam = get_node("/root/Main/Main3D/CameraGimbal")
-	await cam.ready
-	#cam.zoom_changed.connect(_on_cam_zoom_changed)
+	get_node("/root/Main/Body").cam_info_calculated.connect(change_radius)
 
 func init(_tail, _head) -> void:
 	tail.x = _tail.coords[0]
@@ -60,6 +57,6 @@ func draw() -> void:
 	if segment.y < 0: lat = -lat
 	$Gimbal.rotation.z = lat
 
-func _on_cam_zoom_changed(zoom : float) -> void:
-	$Gimbal/EdgeVis.mesh.top_radius = min(zoom * 0.025, 0.025)
-	$Gimbal/EdgeVis.mesh.bottom_radius = min(zoom * 0.025, 0.025)
+func change_radius(_center : Array, radius : float) -> void:
+	$Gimbal/EdgeVis.mesh.top_radius = min(  pow(radius, 3./2.) * 0.025, 0.025)
+	$Gimbal/EdgeVis.mesh.bottom_radius = min(  pow(radius, 3./2.) * 0.025, 0.025)

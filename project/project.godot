@@ -29,7 +29,7 @@ project/assembly_name="godot cpp template"
 
 [editor]
 
-run/main_run_args="-- ../../resource/ant.ply"
+run/main_run_args="-- ../../resource/wikicube.ply"
 
 [input]
 

@@ -3,14 +3,7 @@ extends Node3D
 @export var orb_cam_speed = PI/2
 @export var tras_cam_speed = 1.5
 @export var zoom_speed = 0.05
-var zoom = 1.0 : set = set_zoom
-
-signal zoom_changed
-
-func set_zoom(_zoom: float) -> void:
-	if zoom != _zoom:
-		zoom = _zoom
-		zoom_changed.emit(zoom)
+var zoom = 1.0
 
 var zoom_lower = 0.1
 var zoom_upper = 2.0

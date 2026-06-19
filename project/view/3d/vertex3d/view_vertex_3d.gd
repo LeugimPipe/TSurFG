@@ -1,10 +1,7 @@
 extends MeshInstance3D
 
 func _ready() -> void:
-	await get_node("/root/Main").child_entered_tree
-	var cam = get_node("/root/Main/Main3D/CameraGimbal")
-	await cam.ready
-	#cam.zoom_changed.connect(_on_cam_zoom_changed)
+	get_node("/root/Main/Body").cam_info_calculated.connect(change_radius)
 
 func init(_vertex) -> void:
 	position.x = _vertex.coords[0]
@@ -19,6 +16,6 @@ func on_coords_changed(coords: Array) -> void:
 	if coords.size() > 2:
 		position.z = coords[2]
 
-func _on_cam_zoom_changed(zoom : float) -> void:
-	mesh.radius = min(zoom * 0.05, 0.05)
-	mesh.height = min(zoom * 0.1, 0.1)
+func change_radius(_center : Array, radius : float) -> void:
+	mesh.radius = min( pow(radius, 3./2.) * 0.05, 0.05)
+	mesh.height = min( pow(radius, 3./2.) * 0.1, 0.1)

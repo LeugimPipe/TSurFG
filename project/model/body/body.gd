@@ -64,24 +64,24 @@ func calc_center() -> void:
 	ret.resize(globals.AMBIENT_DIMENSION)
 	ret.fill(0.)
 	
-	var max : Array
-	max.resize(globals.AMBIENT_DIMENSION)
-	max.fill(0.)
+	var max_v : Array
+	max_v.resize(globals.AMBIENT_DIMENSION)
+	max_v.fill(0.)
 	
-	var min : Array
-	min.resize(globals.AMBIENT_DIMENSION)
-	min.fill(0.)
+	var min_v : Array
+	min_v.resize(globals.AMBIENT_DIMENSION)
+	min_v.fill(0.)
 	
 	for v in vertices:
 		for i in globals.AMBIENT_DIMENSION:
 			if i < v.coords.size():
-				if max[i] < v.coords[i]:
-					max[i] = v.coords[i]
-				if min[i] > v.coords[i]:
-					min[i] = v.coords[i]
+				if max_v[i] < v.coords[i]:
+					max_v[i] = v.coords[i]
+				if min_v[i] > v.coords[i]:
+					min_v[i] = v.coords[i]
 	
 	for i in globals.AMBIENT_DIMENSION:
-		ret[i] = (max[i] + min[i])/2.
+		ret[i] = (max_v[i] + min_v[i])/2.
 	
 	center = ret
 
