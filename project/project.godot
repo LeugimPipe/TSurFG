@@ -16,7 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="TSurFG"
 run/main_scene="uid://degmn3bui161b"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -29,7 +29,7 @@ project/assembly_name="godot cpp template"
 
 [editor]
 
-run/main_run_args="-- ../../resource/wikicube.ply"
+run/main_run_args="-- ../../resource/cube.fe"
 
 [input]
 

@@ -19,7 +19,7 @@ var forces : Array
 var file_content : String
 
 # File type
-enum {NONE, PLY}
+enum {NONE, PLY, FE}
 var file_type = NONE
 
 signal cam_info_calculated
@@ -142,15 +142,19 @@ func load_file(content: String) -> void:
 	if check_and_consume_head("ply"):
 		file_type = PLY
 		load_ply()
+		
 	else:
-		push_error("Unrecognized file type")
-		return
+		# Will attempt to parse file
+		# as a surface evolver (.fe) file
+		# These don't start with a magic word
+		file_type = FE
+		load_fe()
 	
 	# TODO: check face orientation compatibility
 	
 	init()
 
-# FILE PROCESS UTILS
+# FILE PROCESSING UTILS
 
 func is_white_space(s : String) -> bool:
 	return s == " " or s == "\t"
@@ -180,16 +184,21 @@ func check_and_consume_head(check: String) -> bool:
 	match file_type:
 		PLY:
 			error_ply()
+		FE:
+			error_fe()
 	
 	return false
 
 func check_head(check: String) -> bool:
+	consume_white_or_end_line()
 	return file_content.left(check.length()) == check
 
 # Consume file_content until nth character
 func consume_until(s : String, n : int = 1) -> void:
 	for i in n:
-		consume( file_content.find(s)+1 )
+		var pos = file_content.find(s)
+		if pos != -1:
+			consume( pos+s.length() )
 
 func consume_line(n: int = 1) -> void:
 	consume_until("\n", n)
@@ -233,9 +242,14 @@ func consume_white_or_end_line() -> void:
 func consume_word(n: int = 1) -> void:
 	for i in n:
 		consume_white_or_end_line()
-		while file_content.length() > 0 and file_content[0] != "\n" and file_content[0] != " ":
+		while file_content.length() > 0 and !is_new_line_or_white(file_content[0]):
 			consume(1)
 		consume_white_or_end_line()
+
+func check_head_is_int() -> bool:
+	for i in 10:
+		if check_head( str(i) ): return true
+	return false
 
 # LOAD PLY
 
@@ -260,8 +274,8 @@ func load_ply() -> void:
 	# Consume version
 	consume_word()
 	
-	# Consume next comments
-	consume_ply_comments()
+	# Erases comments
+	erase_ply_comments()
 	
 	# VERTICES section
 	
@@ -283,9 +297,6 @@ func load_ply() -> void:
 		return
 	n_vertices = n_vertices.to_int()
 	
-	# Consume next comments
-	consume_ply_comments()
-	
 	# Process properties
 	# Make note of where in the file the x, y, z are located
 	x_pos = -1
@@ -303,9 +314,6 @@ func load_ply() -> void:
 		
 		consume_word()
 		
-		# Consume next comments
-		consume_ply_comments()
-		
 		n_prop_verts += 1
 	
 	if x_pos == -1:
@@ -322,9 +330,6 @@ func load_ply() -> void:
 		error_ply()
 		push_error("Definition of z coordinate not found")
 		return
-	
-	# Consume next comments
-	consume_ply_comments()
 	
 	# FACES section
 	
@@ -346,9 +351,6 @@ func load_ply() -> void:
 		return
 	n_faces = n_faces.to_int()
 	
-	# Consume next comments
-	consume_ply_comments()
-	
 	# Check, process and consume property list
 	if !check_and_consume_head("property"):
 		push_error("Expected property of faces")
@@ -369,19 +371,11 @@ func load_ply() -> void:
 		return
 	consume_word()
 	
-	# Consume next comments
-	consume_ply_comments()
-	
-	# TODO: allow edges
-	
 	# Allow more element definitions
 	# Will ignore them
 	while check_head("element"):
 		# Consume "element", element name and number of elements
 		consume_word(3)
-		
-		# Consume any comments after element definition
-		consume_ply_comments()
 		
 		# Consume any property definitions
 		while check_head("property"):
@@ -396,8 +390,6 @@ func load_ply() -> void:
 				# Consume type and name
 				consume_word(2)
 			
-			# Consume any comments after property definition
-			consume_ply_comments()
 	
 	# Check and consume end_header
 	if !check_and_consume_head("end_header"):
@@ -516,16 +508,188 @@ func load_ply() -> void:
 			facets[-1].init( i*2+1, edges[ abs(e_indices[2]) ], edges[ abs(e_indices[3]) ], edges[ abs(e_indices[4]) ], e_indices[2] < 0, e_indices[3] < 0, e_indices[4] < 0 )
 			add_child(facets[-1])
 
-func consume_ply_comments() -> void:
-	consume_white_or_end_line()
-	
-	while check_head("comment"):
-		consume("comment".length())
-		consume_white_or_end_line()
-		consume_line()
-		consume_white_or_end_line()
-	
-	consume_white_or_end_line()
-
 func error_ply() -> void:
 	push_error("Cannot open .ply file")
+
+func erase_ply_comments() -> void:
+	var compos = file_content.find("comment")
+	while compos != -1:
+		while file_content[compos] != "\n":
+			file_content = file_content.erase(compos)
+		compos = file_content.find("comment")
+
+# LOAD FE
+
+func load_fe() -> void:
+	# TODO: file format is case insensitive
+	
+	erase_fe_comments()
+	
+	# Definitions and options sections
+	# Will ignore it
+	
+	# TODO: ids in file may be different than ordering and may be gaps
+	# TODO: rest of fe specification
+	# TODO: there may be more information per line than the basics
+	
+	# Vertices section
+	while !check_and_consume_head("vertices"):
+		consume_word()
+		if file_content.is_empty():
+			error_fe()
+			push_error("Vertices section not found")
+			return
+	
+	while (check_head_is_int()):
+		vertices.append(vertex_scene.instantiate())
+		
+		# Consume vertex number
+		var vert_id = get_and_consume_head(" ")
+		if !vert_id.is_valid_int():
+			error_fe()
+			push_error("Invalid vertex number %s", vert_id)
+			return
+		vert_id = vert_id.to_int()
+		
+		# Get vertex coordinates
+		var coords : PackedFloat32Array
+		coords.resize(3)
+		for i in 3:
+			var cur
+			if i == 2: cur = get_and_consume_head()
+			else: cur = get_and_consume_head(" ")
+			
+			if !cur.is_valid_float():
+				error_fe()
+				push_error("Invalid x%s coordinate %s for vertex %s" % [i+1, cur, vert_id])
+				return
+			
+			coords[i] = cur.to_float()
+		
+		vertices[-1].init( vertices.size(), coords )
+		add_child(vertices[-1])
+	
+	# Consume edges
+	if !check_and_consume_head("edges"):
+		error_fe()
+		push_error("Edges section not found")
+		return
+	
+	while (check_head_is_int()):
+		edges.append(edge_scene.instantiate())
+		
+		# Consume edge number
+		var edge_id = get_and_consume_head(" ")
+		if !edge_id.is_valid_int():
+			error_fe()
+			push_error("Invalid edge number %s", edge_id)
+			return
+		edge_id = edge_id.to_int()
+		
+		# Get vertex numbers
+		var v : PackedInt32Array
+		v.resize(2)
+		for i in 2:
+			var cur
+			if i == 1: cur = get_and_consume_head()
+			else: cur = get_and_consume_head(" ")
+			
+			if !cur.is_valid_int():
+				error_fe()
+				push_error("Invalid vertex number %s for edge %s" % [cur, edge_id])
+				return
+			
+			v[i] = cur.to_int()
+		
+		edges[-1].init( edges.size(), vertices[ v[0]-1 ], vertices[ v[1]-1 ] )
+		add_child(edges[-1])
+	
+	# Faces section
+	# TODO: optional in string model
+	
+	# Consume faces
+	if !check_and_consume_head("faces"):
+		error_fe()
+		push_error("Faces section not found")
+		return
+	
+	while (check_head_is_int()):
+		
+		# Consume facet number
+		var facet_id = get_and_consume_head(" ")
+		if !facet_id.is_valid_int():
+			error_fe()
+			push_error("Invalid edge number %s", facet_id)
+			return
+		facet_id = facet_id.to_int()
+		
+		# Get edge numbers
+		var e : PackedInt32Array
+		while !is_new_line(file_content[0]):
+			var cur = ""
+			while !is_new_line_or_white(file_content[0]):
+				cur += file_content[0]
+				consume(1)
+			consume_white_space()
+			
+			if !cur.is_valid_int():
+				error_fe()
+				push_error("Invalid edge number %s for facet %s" % [cur, facet_id])
+				return
+			
+			e.append(cur.to_int())
+		
+		if e.size() == 4:
+			# Add new vertex in center
+			vertices.append(vertex_scene.instantiate())
+			var coords : PackedFloat32Array
+			coords.resize(3)
+			coords.fill(0)
+			
+			for i in 4:
+				var edge = edges[ abs(e[i])-1 ]
+				var vertex
+				if e[i] < 0:
+					vertex = edge.head
+				else:
+					vertex = edge.tail
+				
+				for j in 3:
+					coords[j] += vertex.coords[j]
+			
+			for i in 3: coords[i] /= 4
+			
+			vertices[-1].init( vertices.size(), coords )
+			add_child(vertices[-1])
+			
+			# Add diagonal edges
+			for i in 4:
+				edges.append(edge_scene.instantiate())
+				if e[i] < 0: edges[-1].init( edges.size(), edges[ abs(e[i])-1 ].tail, vertices[-1] )
+				else: edges[-1].init( edges.size(), edges[ abs(e[i])-1 ].head, vertices[-1] )
+				add_child(edges[-1])
+			
+			for i in 4:
+				facets.append(facet_scene.instantiate())
+				facets[-1].init( facets.size(), edges[ abs(e[i])-1 ], edges[ edges.size() + i-4 ], edges[ edges.size() + posmod(i-1, 4) - 4 ], e[i] < 0, false, true )
+				add_child(facets[-1])
+
+func erase_fe_comments() -> void:
+	var compos = file_content.find("//")
+	while compos != -1:
+		while file_content[compos] != "\n":
+			file_content = file_content.erase(compos)
+		compos = file_content.find("//")
+	
+	compos = file_content.find("/*")
+	while compos != -1:
+		file_content = file_content.erase(compos)
+		file_content = file_content.erase(compos)
+		while !(file_content[compos] == "*" and file_content[compos+1] == "/"):
+			file_content = file_content.erase(compos)
+		file_content = file_content.erase(compos)
+		file_content = file_content.erase(compos)
+		compos = file_content.find("/*")
+
+func error_fe() -> void:
+	push_error("Cannot open .fe file")

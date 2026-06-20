@@ -7,7 +7,7 @@ func _ready() -> void:
 	body.cam_center_calculated.connect(_on_body_cam_center_calculated)
 
 func _on_body_cam_info_calculated(center : Array, radius : float) -> void:
-	$CameraGimbal.zoom_factor = radius
+	if radius!= 0.: $CameraGimbal.zoom_factor = radius
 	var tw = create_tween().set_trans(Tween.TRANS_SINE)
 	tw.tween_property($CameraGimbal, "position", Vector3(center[0], center[1], center[2]), 0.3)
 	await tw.finished
