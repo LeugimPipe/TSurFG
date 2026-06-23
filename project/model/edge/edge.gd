@@ -1,6 +1,7 @@
 extends Node
 
-var id
+var id : int = -1
+var oid : int = -1
 
 var tail
 var head
@@ -8,11 +9,15 @@ var head
 var tail_id
 var head_id
 
+# Stores which facets are connected to this vertex
+var con_facets : PackedInt32Array = []
+
 var view
 
-func init(_id = -1, _tail = null, _head = null) -> void:
+func init(_id : int = -1, _tail = null, _head = null, _oid : int = -1 ) -> void:
 	if view != null: view.queue_free()
 	id = _id
+	if _oid != -1: oid = _oid
 	tail = _tail
 	head = _head
 	
@@ -30,6 +35,10 @@ func init(_id = -1, _tail = null, _head = null) -> void:
 
 	view.init(tail, head)
 	add_child(view)
+
+func connect_facet(facet) -> void:
+	var f_id = facet.get_id()
+	con_facets.append(f_id)
 
 func get_id() -> int:
 	return id

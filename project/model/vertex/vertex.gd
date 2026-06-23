@@ -2,7 +2,8 @@ extends Node
 # TODO: probablemente no deberia ser un Node
 # Sino algo mas ligero
 
-var id : int
+var id : int = -1
+var oid : int = -1
 
 # TODO
 # Las coordenadas deberian ser un tipo especial de Array a semejanza de Vector2 y Vector3
@@ -20,14 +21,22 @@ func set_coords(value : Array):
 
 # Stores the indices of the connected vertices
 # Same order as con_edges
-var con_vertices : Array = []
+var con_vertices : PackedInt32Array = []
 
 # Stores which edges are connected to this vertex
 # Stores the signed index
 # Sign is positive if it's the tail, negative otherwise
-var con_edges : Array = []
+var con_edges : PackedFloat32Array = []
+
+# Stores which facets are connected to this vertex
+var con_facets : PackedInt32Array = []
 
 var view
+
+@export var force_scene : PackedScene
+# List of forces acting on the node
+# Array of array of Force nodes
+var forces : Array = []
 
 func save_coords() -> void:
 	saved_coords = coords.duplicate()
@@ -36,9 +45,10 @@ func restore_coords() -> void:
 	coords = saved_coords.duplicate()
 
 # Initialize the vertex
-func init(_id : int, _coords : Array = [], _fixed : bool = false) -> void:
+func init(_id : int, _coords : Array = [], _oid : int = -1, _fixed : bool = false) -> void:
 	id = _id
 	coords = _coords
+	if _oid != -1: oid = _oid
 	fixed = _fixed
 	
 	if globals.AMBIENT_DIMENSION == 2:
@@ -49,6 +59,15 @@ func init(_id : int, _coords : Array = [], _fixed : bool = false) -> void:
 	
 	view.init(self)
 	add_child(view)
+	
+	# Force init
+	var f_coords : PackedFloat32Array
+	f_coords.resize( coords.size() )
+	f_coords.fill(0.)
+	var zeroforce = force_scene.instantiate()
+	zeroforce.init(f_coords)
+	forces.append(zeroforce)
+	add_child(forces[0])
 
 func get_id() -> int:
 	return id
@@ -68,6 +87,10 @@ func connect_edge(edge, tail: bool = true) -> void:
 		push_warning("WARNING: vertices %s and %s are already joined by an edge" % [get_id(), v_id])
 	con_vertices.append(v_id)
 	con_edges.append(e_id)
+
+func connect_facet(facet) -> void:
+	var f_id = facet.get_id()
+	con_facets.append(f_id)
 
 func is_vertex_connected(vertex) -> bool:
 	return is_vertex_connected_id(vertex.get_id())
@@ -104,3 +127,16 @@ func get_as_vector():
 			return Vector3(coords[0], coords[1], 0)
 		if coords.size() == 3:
 			return Vector3(coords[0], coords[1], coords[2])
+
+func set_forces_zero() -> void:
+	for f in forces:
+		var f_coords : PackedFloat32Array
+		f_coords.resize( coords.size() )
+		f_coords.fill(0.)
+		f.init(f_coords)
+
+func iterate() -> void:
+	coords = [
+		coords[0] + 0.2*forces[0].coords[0],
+		coords[1] + 0.2*forces[0].coords[1],
+		coords[2] + 0.2*forces[0].coords[2] ]

@@ -16,6 +16,14 @@ var v2
 
 var view
 
+var edge0_id
+var edge1_id
+var edge2_id
+
+var v0_id
+var v1_id
+var v2_id
+
 func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false) -> void:
 	if view != null: view.queue_free()
 	
@@ -73,6 +81,22 @@ func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee
 
 	view.init(v0, v1, v2)
 	add_child(view)
+	
+	edge0_id = edge0.get_id()
+	edge1_id = edge1.get_id()
+	edge2_id = edge2.get_id()
+	
+	v0_id = v0.get_id()
+	v1_id = v1.get_id()
+	v2_id = v2.get_id()
+	
+	edge0.connect_facet(self)
+	edge1.connect_facet(self)
+	edge2.connect_facet(self)
+	
+	v0.connect_facet(self)
+	v1.connect_facet(self)
+	v2.connect_facet(self)
 
 # TODO: hacer mejor con el tipo futuro VectorN
 func area() -> float:
@@ -143,3 +167,6 @@ func center() -> Array:
 		ret[i] = 1/3. * (v0.coords[i] + v1.coords[i] + v2.coords[i])
 	
 	return ret
+
+func get_id() -> int:
+	return id

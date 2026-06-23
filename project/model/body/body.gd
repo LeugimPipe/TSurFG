@@ -3,17 +3,10 @@ extends Node
 @export var vertex_scene : PackedScene
 @export var edge_scene : PackedScene
 @export var facet_scene : PackedScene
-@export var force_scene : PackedScene
 
 var vertices : Array
 var edges : Array
 var facets : Array
-
-# List of forces
-# Array of array of Force nodes
-# Each element is the set of forces applied to a vertex
-# The vertex is the one with the same number in the list of vertices
-var forces : Array
 
 # Content of the file being processed
 var file_content : String
@@ -29,12 +22,7 @@ signal cam_center_calculated
 var center : Array
 var radius : float
 
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta: float) -> void:
+func _input(_event: InputEvent) -> void:
 	if Input.is_action_just_pressed("iterate"):
 		iterate()
 	if Input.is_action_just_pressed("refine"):
@@ -53,6 +41,26 @@ func init() -> void:
 	var main3d = get_node("../Main3D")
 	await main3d.ready
 	cam_info_calculated.emit(center, radius)
+	
+	print_info()
+	# Allow terminal thread to continue once initialized
+	globals.semaphore.post()
+
+func print_info() -> void:
+	globals.printer( "Total area: %s" % get_total_area() +
+		" Total volume: %s" % get_volume() )
+
+func get_total_area() -> float:
+	var ret = 0.
+	for f in facets:
+		ret += f.area()
+	return ret
+
+func get_volume() -> float:
+	var ret = 0.
+	for f in facets:
+		ret += f.volume_contribution()
+	return ret
 
 func calc_characteristics() -> void:
 	calc_center()
@@ -108,30 +116,59 @@ func calc_all_ev_vectors() -> void:
 	calc_forces()
 	restore_constants()
 
+func calc_forces() -> void:
+	set_forces_zero()
+	
+	# Force 1: Gradient of area
+	for v in vertices:
+		calc_grad_area_vertex(v)
+
+func calc_grad_area_vertex(vertex) -> void:
+	for f_id in vertex.con_facets:
+		var vector = facets[ f_id ].get_oposite_side_rotated(vertex)
+		
+		vertex.forces[0].coords = [
+			vertex.forces[0].coords[0] + .5*vector.x,
+			vertex.forces[0].coords[1] + .5*vector.y,
+			vertex.forces[0].coords[2] + .5*vector.z ]
+
 func restore_constants() -> void:
 	pass
 
 func set_forces_zero() -> void:
-	forces.resize(vertices.size())
-	for i in forces.size():
-		var zeroforce = force_scene.instantiate()
-		zeroforce.init([0,0])
-		forces[i] = [zeroforce]
-		add_child(zeroforce)
-
-func calc_forces() -> void:
-	set_forces_zero()
+	for v in vertices:
+		v.set_forces_zero()
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate() -> void:
-	for i in vertices.size():
-		vertices[i].coords = [ vertices[i].coords[0] + 0.2*forces[i][0].coords[0], vertices[i].coords[1] + 0.2*forces[i][0].coords[1] ]
+	for v in vertices:
+		v.iterate()
 	
-	restore_constants()
-	calc_forces()
+	calc_all_ev_vectors()
+	
+	print_info()
+
+func iterate_n(n : int = 1) -> void:
+	for i in n:
+		iterate()
+	
+	# Allow terminal thread to continue
+	globals.semaphore.post()
 
 func refine() -> void:
 	pass
+
+func v_get_id_from_oid(_oid: int) -> int:
+	for v in vertices:
+		if v.oid == _oid: return v.get_id()
+	return -1
+
+func e_get_id_from_oid(_oid : int) -> int:
+	for e in edges:
+		if e.oid == _oid: return e.get_id()
+	return -1
+
+# FILE LOAD
 
 func load_file(content: String) -> void:
 	file_content = content
@@ -493,7 +530,7 @@ func load_ply() -> void:
 			else:
 				e_indices[j] = edge_id
 		
-		# Add facet
+		# Add facet(s)
 		if n_vertices_face == 3:
 			facets.append(facet_scene.instantiate())
 			facets[-1].init( i, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
@@ -566,7 +603,7 @@ func load_fe() -> void:
 			
 			coords[i] = cur.to_float()
 		
-		vertices[-1].init( vertices.size(), coords )
+		vertices[-1].init( vertices.size()-1, coords, vert_id )
 		add_child(vertices[-1])
 	
 	# Consume edges
@@ -587,8 +624,9 @@ func load_fe() -> void:
 		edge_id = edge_id.to_int()
 		
 		# Get vertex numbers
-		var v : PackedInt32Array
-		v.resize(2)
+		var v_oids : PackedInt32Array
+		v_oids.resize(2)
+		v_oids.fill(-1)
 		for i in 2:
 			var cur
 			if i == 1: cur = get_and_consume_head()
@@ -599,9 +637,18 @@ func load_fe() -> void:
 				push_error("Invalid vertex number %s for edge %s" % [cur, edge_id])
 				return
 			
-			v[i] = cur.to_int()
+			v_oids[i] = cur.to_int()
 		
-		edges[-1].init( edges.size(), vertices[ v[0]-1 ], vertices[ v[1]-1 ] )
+		var v_id : PackedInt32Array
+		v_id.resize(2)
+		for i in 2:
+			v_id[i] = v_get_id_from_oid( v_oids[i] )
+			if v_id[i] == -1:
+				error_fe()
+				push_error("Invalid vertex number %s for edge %s" % [v_oids[i], edge_id])
+				return
+		
+		edges[-1].init( edges.size()-1, vertices[ v_id[0] ], vertices[ v_id[1] ], edge_id )
 		add_child(edges[-1])
 	
 	# Faces section
@@ -639,6 +686,8 @@ func load_fe() -> void:
 			
 			e.append(cur.to_int())
 		
+		# TODO: 3-edge faces
+		
 		if e.size() == 4:
 			# Add new vertex in center
 			vertices.append(vertex_scene.instantiate())
@@ -647,7 +696,7 @@ func load_fe() -> void:
 			coords.fill(0)
 			
 			for i in 4:
-				var edge = edges[ abs(e[i])-1 ]
+				var edge = edges[ e_get_id_from_oid( abs(e[i]) ) ]
 				var vertex
 				if e[i] < 0:
 					vertex = edge.head
@@ -659,20 +708,24 @@ func load_fe() -> void:
 			
 			for i in 3: coords[i] /= 4
 			
-			vertices[-1].init( vertices.size(), coords )
+			vertices[-1].init( vertices.size()-1, coords )
 			add_child(vertices[-1])
 			
 			# Add diagonal edges
 			for i in 4:
 				edges.append(edge_scene.instantiate())
-				if e[i] < 0: edges[-1].init( edges.size(), edges[ abs(e[i])-1 ].tail, vertices[-1] )
-				else: edges[-1].init( edges.size(), edges[ abs(e[i])-1 ].head, vertices[-1] )
+				if e[i] < 0: edges[-1].init( edges.size()-1, edges[ e_get_id_from_oid( abs(e[i]) ) ].tail, vertices[-1] )
+				else: edges[-1].init( edges.size()-1, edges[ e_get_id_from_oid( abs(e[i]) ) ].head, vertices[-1] )
 				add_child(edges[-1])
 			
 			for i in 4:
 				facets.append(facet_scene.instantiate())
-				facets[-1].init( facets.size(), edges[ abs(e[i])-1 ], edges[ edges.size() + i-4 ], edges[ edges.size() + posmod(i-1, 4) - 4 ], e[i] < 0, false, true )
+				facets[-1].init( facets.size()-1, edges[ e_get_id_from_oid( abs(e[i]) ) ], edges[ edges.size() + i-4 ], edges[ edges.size() + posmod(i-1, 4) - 4 ], e[i] < 0, false, true )
 				add_child(facets[-1])
+			
+			# Bodies section
+			
+			# Commands section
 
 func erase_fe_comments() -> void:
 	var compos = file_content.find("//")
