@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://d1q2456t8uay3"]
+
+[ext_resource type="Script" uid="uid://b2yd6ncquycux" path="res://model/geometry/body_graph.gd" id="1_uca6e"]
+
+[node name="BodyScene" unique_id=77118916]
+script = ExtResource("1_uca6e")

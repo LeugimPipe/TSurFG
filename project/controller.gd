@@ -32,7 +32,7 @@ func _ready() -> void:
 		filename = args[0]
 		
 		if not filename.is_empty():
-			set_file_loaded(load_file())
+			load_file()
 			if not file_loaded:
 				set_up_user_file_load()
 		
@@ -47,38 +47,30 @@ func _ready() -> void:
 	terminal_input_thread.start(terminal_input)
 
 # There must be something in filename
-func load_file(terminal : bool = false) -> bool:
+func load_file(terminal : bool = false) :
 	if !terminal: printraw("\n")
 	print("Reading file ", filename)
 	
 	var file = FileAccess.open(filename, FileAccess.READ)
 	if FileAccess.get_open_error() != OK:
 		push_error("Couldn't open file ", filename)
-		if terminal: globals.semaphore.post()
-		return false
-	else: content = file.get_as_text()
+		set_file_loaded( false )
+	else:
+		content = file.get_as_text()
 	
-	set_file_loaded( body.load_file(content) )
+		set_file_loaded( body.load_file(content) )
 	
-	if not file_loaded:
-		# Cutre repetirlo dos veces
-		# pero si el load no falla
-		# hay que continuar con el hilo
-		# despues del inicio del main3d
-		if terminal: globals.semaphore.post()
-		return false
+		if file_loaded:
 	
-	if globals.AMBIENT_DIMENSION == 2:
-		view = load("res://view/2d/main2d/main2d.tscn").instantiate()
-		add_child(view)
+			if globals.AMBIENT_DIMENSION == 2:
+				view = load("res://view/2d/main2d/main2d.tscn").instantiate()
+				add_child(view)
 	
-	if globals.AMBIENT_DIMENSION == 3:
-		view = load("res://view/3d/main3d/main3d.tscn").instantiate()
-		add_child(view)
+			if globals.AMBIENT_DIMENSION == 3:
+				view = load("res://view/3d/main3d/main3d.tscn").instantiate()
+				add_child(view)
 	
 	if terminal: globals.semaphore.post()
-	
-	return true
 
 func set_up_user_file_load() -> void:
 	$GUI/FileSelect.visible = true
@@ -86,6 +78,30 @@ func set_up_user_file_load() -> void:
 func put_down_user_file_load(terminal : bool = false) -> void:
 	$GUI/FileSelect.visible = false
 	if not terminal: globals.print_prompt()
+
+func change_to_optimizing(terminal : bool = false) -> void:
+	globals.optimizing_time_step = true
+	globals.printer("Changing from constant to optimizing time step")
+	$GUI/HBoxContainer/ChangeTimeStep.disabled = true
+	$GUI/HBoxContainer/TimeStepIntro.editable = false
+	$GUI/HBoxContainer/ChangeTimeStepMode.text = "Change to constant time step"
+	if terminal: globals.semaphore.post()
+
+func change_to_constant(new_time_step : float, terminal : bool = false) -> void:
+	globals.optimizing_time_step = false
+	
+	globals.time_step = new_time_step
+	
+	globals.printer("Changing from optimizing to constant time step %s" % globals.time_step)
+	$GUI/HBoxContainer/ChangeTimeStep.disabled = false
+	$GUI/HBoxContainer/TimeStepIntro.editable = true
+	$GUI/HBoxContainer/ChangeTimeStepMode.text = "Change to optimizing time step"
+	if terminal: globals.semaphore.post()
+
+func change_time_step(new_time_step : float, terminal : bool = false) -> void:
+	print("Changing time step from ", globals.time_step , " to ", new_time_step)
+	globals.time_step = new_time_step
+	if terminal: globals.semaphore.post()
 
 # KEYBOARD INPUT
 func _input(_event: InputEvent) -> void:
@@ -117,7 +133,7 @@ func _on_iterate_button_n_pressed() -> void:
 	if not file_loaded: return
 	printraw("\n")
 	
-	var n = $GUI/HBoxContainer/NIteration.text.strip_edges()
+	var n = $GUI/HBoxContainer/NIterationIntro.text.strip_edges()
 	if not n.is_valid_int():
 		push_error("Invalid number of iterations")
 	else:
@@ -130,10 +146,40 @@ func _on_line_edit_text_submitted(new_text: String) -> void:
 	new_text = new_text.strip_edges()
 	if new_text != "":
 		filename = new_text
-		set_file_loaded( load_file() )
+		load_file()
 		
 		if file_loaded: put_down_user_file_load()
 		else: globals.print_file_select_prompt()
+
+func _on_change_time_step_pressed() -> void:
+	if not file_loaded: return
+	printraw("\n")
+	
+	var new_time_step = $GUI/HBoxContainer/TimeStepIntro.text.strip_edges()
+	if not new_time_step.is_valid_float():
+		push_error("Invalid time step %s" % new_time_step )
+	else:
+		change_time_step(new_time_step.to_float())
+	
+	globals.print_prompt()
+
+func _on_change_time_step_mode_pressed() -> void:
+	if not file_loaded: return
+	printraw("\n")
+	
+	if not globals.optimizing_time_step:
+		change_to_optimizing()
+	else:
+		var new_time_step = $GUI/HBoxContainer/TimeStepIntro.text.strip_edges()
+	
+		if new_time_step.is_valid_float():
+			new_time_step = new_time_step.to_float()
+		else:
+			new_time_step = 0.1
+		
+		change_to_constant(new_time_step)
+	
+	globals.print_prompt()
 
 # TERMINAL INPUT
 func terminal_input() -> void:
@@ -174,31 +220,79 @@ func terminal_input() -> void:
 							body.call_deferred("iterate_n", 1, true)
 							# Wait for action to complete
 							globals.semaphore.wait()
+						
+						"m":
+							if not globals.optimizing_time_step:
+								call_deferred("change_to_optimizing", true)
+								# Wait for action to complete
+								globals.semaphore.wait()
+							
+							else:
+								print("Changing from optimizing to constant time step")
+								
+								call_deferred( "start_sub_prompt" )
+								# Wait for action to complete
+								globals.semaphore.wait()
+								
+								printraw("Introduce new time step: ")
+								var new_time_step = OS.read_string_from_stdin().strip_edges()
+								if terminal_input_thread_terminate: return
+								
+								while not new_time_step.is_valid_float():
+									print("Invalid time step")
+									printraw("Introduce new time step: ")
+									new_time_step = OS.read_string_from_stdin().strip_edges()
+									if terminal_input_thread_terminate: return
+								
+								call_deferred( "end_sub_prompt" )
+								# Wait for action to complete
+								globals.semaphore.wait()
+								
+								call_deferred("change_to_constant", new_time_step.to_float(), true)
+								
+								# Wait for action to complete
+								globals.semaphore.wait()
 	
 				elif input.length() > 1:
 					match input[1]:
 						" ":
 							match input[0]:
 								"g":
-									input = input.right(-2)
+									input = input.right(-2).strip_edges()
 									if !input.is_valid_int():
-										push_error("Invalid number of iterations")
+										push_error("Invalid number of iterations %s" % input)
 									else:
 										var n = input.to_int()
 										body.call_deferred("iterate_n", n, true)
 										# Wait for action to complete
 										globals.semaphore.wait()
+								
+								"m":
+									input = input.right(-2).strip_edges()
+									if not input.is_valid_float():
+										push_error("Invalid time step %s" % input)
+									else:
+										var new_time_step = input.to_float()
+										if globals.optimizing_time_step:
+											call_deferred("change_to_constant", new_time_step, true)
+										
+										else:
+											call_deferred("change_time_step", new_time_step, true)
+										
+										# Wait for action to complete
+										globals.semaphore.wait()
+						
 						_: pass
-	
-	#if input == "m": print("Changing from optimizing time factor to constant time factor")
-	#elif input.length() != 1 and input[0] == "m":
-	#	if input[1] != " ": push_error("No ")
-	
-	#if input[0] == "m":
-	#	print("Changing from optimizing time factor to constant time factor")
-	
-	#if input.length() == 1: print("Receive time step")
-	#elif input[1] != " ": push_error("No ")
+
+## Called when the terminal input thread starts a subprompt.
+## Disables all other input
+func start_sub_prompt() -> void:
+	get_tree().paused = true
+	globals.semaphore.post()
+
+func end_sub_prompt() -> void:
+	get_tree().paused = false
+	globals.semaphore.post()
 
 func _exit_tree():
 	terminal_input_thread_terminate = true

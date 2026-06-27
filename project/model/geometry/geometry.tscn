@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://dojuy3buxwfa6"]
+
+[ext_resource type="Script" uid="uid://cpj2ktr8i8yqf" path="res://model/geometry/geometry.gd" id="1_a6gcv"]
+[ext_resource type="PackedScene" uid="uid://bmlvlped7esah" path="res://model/vertex/vertex.tscn" id="2_xglq5"]
+[ext_resource type="PackedScene" uid="uid://d4nfjtwcec7bm" path="res://model/edge/edge.tscn" id="3_w7aen"]
+[ext_resource type="PackedScene" uid="uid://vg4klibov5r0" path="res://model/facet/facet.tscn" id="4_ajxxx"]
+[ext_resource type="PackedScene" uid="uid://c48gu0gwlwanq" path="res://model/body/body.tscn" id="5_xglq5"]
+
+[node name="Geometry" type="Node" unique_id=77118916]
+script = ExtResource("1_a6gcv")
+vertex_scene = ExtResource("2_xglq5")
+edge_scene = ExtResource("3_w7aen")
+facet_scene = ExtResource("4_ajxxx")
+body_scene = ExtResource("5_xglq5")

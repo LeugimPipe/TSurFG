@@ -9,8 +9,18 @@ var AMBIENT_DIMENSION = 3
 var VIS_SCALE_2D = 100
 var VIS_TRANSFORM_2D = Transform2D(VIS_SCALE_2D*Vector2.RIGHT,-VIS_SCALE_2D*Vector2.DOWN, Vector2.ZERO)
 
-# Calculating time step
+## Indicates that the system is
+## currently calculating the optimal
+## time step. [br]
+## The representation won't be altered while
+## the flag is up.
 var CALCULATING_STEP = false
+
+## Current time step
+var time_step : float = 0.1
+## Represents whether the time step
+## is constant or optimizing
+var optimizing_time_step : bool = true
 
 func _ready() -> void:
 	mutex = Mutex.new()

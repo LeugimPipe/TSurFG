@@ -1,6 +1,7 @@
 extends Node
 
-var id
+var id : int = -1
+var oid : int = -1
 
 var edge0
 var edge1
@@ -24,10 +25,11 @@ var v0_id
 var v1_id
 var v2_id
 
-func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false) -> void:
+func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false,  _oid : int = -1) -> void:
 	if view != null: view.queue_free()
 	
 	id = _id
+	if _oid != -1: oid = _oid
 	edge0 = _edge0
 	edge1 = _edge1
 	edge2 = _edge2

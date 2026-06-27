@@ -135,11 +135,11 @@ func set_forces_zero() -> void:
 		f_coords.fill(0.)
 		f.init(f_coords)
 
-func iterate() -> void:
+func apply_forces() -> void:
 	coords = [
-		coords[0] + 0.2*forces[0].coords[0],
-		coords[1] + 0.2*forces[0].coords[1],
-		coords[2] + 0.2*forces[0].coords[2] ]
+		coords[0] + globals.time_step * forces[0].coords[0],
+		coords[1] + globals.time_step * forces[0].coords[1],
+		coords[2] + globals.time_step * forces[0].coords[2] ]
 
 func delete() -> void:
 	while not forces.is_empty():

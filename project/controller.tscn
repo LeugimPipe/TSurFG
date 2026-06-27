@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://degmn3bui161b"]
 
 [ext_resource type="Script" uid="uid://cd04045x1vdav" path="res://controller.gd" id="1_n1geg"]
-[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/body/body.tscn" id="2_dd4ha"]
+[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/geometry/geometry.tscn" id="2_dd4ha"]
 
 [node name="Controller" type="Node" unique_id=975899470]
 script = ExtResource("1_n1geg")
@@ -21,10 +21,25 @@ text = "Iterate"
 layout_mode = 2
 text = "Iterate n times"
 
-[node name="NIteration" type="LineEdit" parent="GUI/HBoxContainer" unique_id=1068495011]
+[node name="NIterationIntro" type="LineEdit" parent="GUI/HBoxContainer" unique_id=1068495011]
 layout_mode = 2
 text = "1"
-placeholder_text = "1"
+placeholder_text = "steps"
+
+[node name="ChangeTimeStepMode" type="Button" parent="GUI/HBoxContainer" unique_id=1274401432]
+layout_mode = 2
+text = "Change to constant time step"
+
+[node name="ChangeTimeStep" type="Button" parent="GUI/HBoxContainer" unique_id=1276867790]
+layout_mode = 2
+disabled = true
+text = "Change time step to"
+
+[node name="TimeStepIntro" type="LineEdit" parent="GUI/HBoxContainer" unique_id=1855492293]
+layout_mode = 2
+text = "0.1"
+placeholder_text = "time step"
+editable = false
 
 [node name="FileSelect" type="VBoxContainer" parent="GUI" unique_id=1012726088]
 visible = false
@@ -51,4 +66,6 @@ placeholder_text = "File..."
 
 [connection signal="pressed" from="GUI/HBoxContainer/IterateButton" to="." method="_on_iterate_button_pressed"]
 [connection signal="pressed" from="GUI/HBoxContainer/IterateButtonN" to="." method="_on_iterate_button_n_pressed"]
+[connection signal="pressed" from="GUI/HBoxContainer/ChangeTimeStepMode" to="." method="_on_change_time_step_mode_pressed"]
+[connection signal="pressed" from="GUI/HBoxContainer/ChangeTimeStep" to="." method="_on_change_time_step_pressed"]
 [connection signal="text_submitted" from="GUI/FileSelect/LineEdit" to="." method="_on_line_edit_text_submitted"]
