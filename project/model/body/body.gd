@@ -22,16 +22,6 @@ signal cam_center_calculated
 var center : Array
 var radius : float
 
-func _input(_event: InputEvent) -> void:
-	if Input.is_action_just_pressed("iterate"):
-		iterate()
-	if Input.is_action_just_pressed("refine"):
-		refine()
-	if Input.is_action_just_pressed("cam_reset"):
-		cam_info_calculated.emit(center, radius)
-	if Input.is_action_just_pressed("cam_focus"):
-		cam_center_calculated.emit(center)
-
 # Functions after initialization
 func init() -> void:
 	calc_characteristics()
@@ -43,8 +33,6 @@ func init() -> void:
 	cam_info_calculated.emit(center, radius)
 	
 	print_info()
-	# Allow terminal thread to continue once initialized
-	globals.semaphore.post()
 
 func print_info() -> void:
 	globals.printer( "Total area: %s" % get_total_area() +
@@ -112,6 +100,12 @@ func calc_radius() -> void:
 	
 	radius = ret
 
+func reset_cam() -> void:
+	cam_info_calculated.emit(center, radius)
+
+func focus_cam() -> void:
+	cam_center_calculated.emit(center)
+
 func calc_all_ev_vectors() -> void:
 	calc_forces()
 	restore_constants()
@@ -144,20 +138,21 @@ func iterate() -> void:
 	for v in vertices:
 		v.iterate()
 	
-	calc_all_ev_vectors()
+	calc_characteristics()
 	
 	print_info()
 
-func iterate_n(n : int = 1) -> void:
+func iterate_n(n : int = 1, terminal : bool = false) -> void:
 	for i in n:
 		iterate()
 	
 	# Allow terminal thread to continue
-	globals.semaphore.post()
+	if terminal: globals.semaphore.post()
 
 func refine() -> void:
 	pass
 
+# GET ID FROM ORIGINAL ID
 func v_get_id_from_oid(_oid: int) -> int:
 	for v in vertices:
 		if v.oid == _oid: return v.get_id()
@@ -168,28 +163,49 @@ func e_get_id_from_oid(_oid : int) -> int:
 		if e.oid == _oid: return e.get_id()
 	return -1
 
+# BODY UNLOAD
+func unload() -> void:
+	for v in vertices:
+		v.queue_free()
+	
+	for e in edges:
+		e.queue_free()
+	
+	for f in facets:
+		f.queue_free()
+	
+	vertices.clear()
+	edges.clear()
+	facets.clear()
+
 # FILE LOAD
 
-func load_file(content: String) -> void:
+func load_file(content: String) -> bool:
+	unload()
 	file_content = content
 	
 	consume_white_or_end_line()
 	
 	# Check file type
-	if check_and_consume_head("ply"):
+	if check_head("ply"):
+		# Consume ply
+		consume_word()
 		file_type = PLY
-		load_ply()
+		var file_loaded = load_ply()
+		if not file_loaded: return false
 		
 	else:
 		# Will attempt to parse file
 		# as a surface evolver (.fe) file
 		# These don't start with a magic word
 		file_type = FE
-		load_fe()
+		var file_loaded = load_fe()
+		if not file_loaded: return false
 	
 	# TODO: check face orientation compatibility
 	
 	init()
+	return true
 
 # FILE PROCESSING UTILS
 
@@ -290,7 +306,7 @@ func check_head_is_int() -> bool:
 
 # LOAD PLY
 
-func load_ply() -> void:
+func load_ply() -> bool:
 	var n_vertices
 	var n_prop_verts
 	var x_pos
@@ -301,12 +317,12 @@ func load_ply() -> void:
 	# Check next comes the format indicator
 	if !check_and_consume_head("format"):
 		push_error("Missing format")
-		return
+		return false
 	
 	# Check next is the ascii formar indicator
 	if !check_and_consume_head("ascii"):
 		push_error("Only ascii .ply files are allowed")
-		return
+		return false
 	
 	# Consume version
 	consume_word()
@@ -319,19 +335,19 @@ func load_ply() -> void:
 	# Check next line stores number of vertices
 	if !check_and_consume_head("element"):
 		push_error("Vertex definition not found")
-		return
+		return false
 	
 	# Check next line stores number of vertices
 	if !check_and_consume_head("vertex"):
 		push_error("Vertex definition not found")
-		return
+		return false
 	
 	# Check, store and consume number of vertices
 	n_vertices = get_and_consume_head()
 	if !n_vertices.is_valid_int():
 		error_ply()
 		push_error("Number of vertices not found")
-		return
+		return false
 	n_vertices = n_vertices.to_int()
 	
 	# Process properties
@@ -356,46 +372,46 @@ func load_ply() -> void:
 	if x_pos == -1:
 		error_ply()
 		push_error("Definition of x coordinate not found")
-		return
+		return false
 	
 	if y_pos == -1:
 		error_ply()
 		push_error("Definition of y coordinate not found")
-		return
+		return false
 	
 	if z_pos == -1:
 		error_ply()
 		push_error("Definition of z coordinate not found")
-		return
+		return false
 	
 	# FACES section
 	
 	# Check next is a definition
 	if !check_and_consume_head("element"):
 		push_error("Expected definition of element")
-		return
+		return false
 	
 	# Check it is for faces
 	if !check_and_consume_head("face"):
 		push_error("Invalid definition of faces")
-		return
+		return false
 	
 	# Check, store and consume number of vertices
 	n_faces = get_and_consume_head()
 	if !n_faces.is_valid_int():
 		error_ply()
 		push_error("Invalid number of faces")
-		return
+		return false
 	n_faces = n_faces.to_int()
 	
 	# Check, process and consume property list
 	if !check_and_consume_head("property"):
 		push_error("Expected property of faces")
-		return
+		return false
 	
 	if !check_and_consume_head("list"):
 		push_error("Property vertex list of faces not found")
-		return
+		return false
 	
 	# Consume type of elements
 	# Will check later if they are ints
@@ -405,7 +421,7 @@ func load_ply() -> void:
 	if !check_head("vertex_indices") and !check_head("vertex_index"):
 		error_ply()
 		push_error("Property of faces does not contain vertex indices or vertex index")
-		return
+		return false
 	consume_word()
 	
 	# Allow more element definitions
@@ -431,7 +447,7 @@ func load_ply() -> void:
 	# Check and consume end_header
 	if !check_and_consume_head("end_header"):
 		push_error("end_header not found")
-		return
+		return false
 	
 	# VERTEX LIST
 	
@@ -444,7 +460,6 @@ func load_ply() -> void:
 	# n_prop_verts
 	
 	for i in n_vertices:
-		vertices.append(vertex_scene.instantiate())
 		
 		# Get vertex coordinates
 		var x
@@ -460,12 +475,13 @@ func load_ply() -> void:
 					if j == x_pos: push_error("Invalid x coordinate %s for vertex %s" % [cur, i])
 					if j == y_pos: push_error("Invalid y coordinate %s for vertex %s" % [cur, i])
 					if j == z_pos: push_error("Invalid z coordinate %s for vertex %s" % [cur, i])
-					return
+					return false
 				
 				if j == x_pos: x = cur.to_float()
 				if j == y_pos: y = cur.to_float()
 				if j == z_pos: z = cur.to_float()
 		
+		vertices.append(vertex_scene.instantiate())
 		vertices[-1].init(i, [x,y,z])
 		add_child(vertices[-1])
 	
@@ -476,14 +492,14 @@ func load_ply() -> void:
 		if !n_vertices_face.is_valid_int():
 			error_ply()
 			push_error("Invalid number of vertices %s for facet %s" % [n_vertices_face, i])
-			return
+			return false
 		n_vertices_face = n_vertices_face.to_int()
 		
 		if n_vertices_face != 3 and n_vertices_face != 4:
 			error_ply()
 			push_error("Invalid number of vertices %s for facet %s" % [n_vertices_face, i])
 			push_error("Only 3 or 4 vertices per face are allowed")
-			return
+			return false
 		
 		var v_indices : Array
 		v_indices.resize(n_vertices_face)
@@ -495,14 +511,14 @@ func load_ply() -> void:
 			if !v_indices[j].is_valid_int():
 				error_ply()
 				push_error("Invalid vertex %s for facet %s" % [v_indices[j], i])
-				return
+				return false
 			v_indices[j] = v_indices[j].to_int()
 		
 		for j in n_vertices_face:
 			if v_indices[j] == -1:
 				error_ply()
 				push_error("Invalid %sth index for facet %s" % [j, i])
-				return
+				return false
 		
 		# Add edges
 		# Store indices of edges of facet
@@ -544,6 +560,8 @@ func load_ply() -> void:
 			facets.append(facet_scene.instantiate())
 			facets[-1].init( i*2+1, edges[ abs(e_indices[2]) ], edges[ abs(e_indices[3]) ], edges[ abs(e_indices[4]) ], e_indices[2] < 0, e_indices[3] < 0, e_indices[4] < 0 )
 			add_child(facets[-1])
+	
+	return true
 
 func error_ply() -> void:
 	push_error("Cannot open .ply file")
@@ -557,7 +575,7 @@ func erase_ply_comments() -> void:
 
 # LOAD FE
 
-func load_fe() -> void:
+func load_fe() -> bool:
 	# TODO: file format is case insensitive
 	
 	erase_fe_comments()
@@ -570,22 +588,23 @@ func load_fe() -> void:
 	# TODO: there may be more information per line than the basics
 	
 	# Vertices section
-	while !check_and_consume_head("vertices"):
+	while !check_head("vertices"):
 		consume_word()
 		if file_content.is_empty():
 			error_fe()
 			push_error("Vertices section not found")
-			return
+			return false
+	
+	# Consume vertices
+	consume_word()
 	
 	while (check_head_is_int()):
-		vertices.append(vertex_scene.instantiate())
-		
 		# Consume vertex number
 		var vert_id = get_and_consume_head(" ")
 		if !vert_id.is_valid_int():
 			error_fe()
 			push_error("Invalid vertex number %s", vert_id)
-			return
+			return false
 		vert_id = vert_id.to_int()
 		
 		# Get vertex coordinates
@@ -599,28 +618,28 @@ func load_fe() -> void:
 			if !cur.is_valid_float():
 				error_fe()
 				push_error("Invalid x%s coordinate %s for vertex %s" % [i+1, cur, vert_id])
-				return
+				return false
 			
 			coords[i] = cur.to_float()
 		
+		vertices.append(vertex_scene.instantiate())
 		vertices[-1].init( vertices.size()-1, coords, vert_id )
 		add_child(vertices[-1])
 	
+	# TODO: comprobar unicidad de los oid
+	
 	# Consume edges
 	if !check_and_consume_head("edges"):
-		error_fe()
 		push_error("Edges section not found")
-		return
+		return false
 	
 	while (check_head_is_int()):
-		edges.append(edge_scene.instantiate())
-		
 		# Consume edge number
 		var edge_id = get_and_consume_head(" ")
 		if !edge_id.is_valid_int():
 			error_fe()
 			push_error("Invalid edge number %s", edge_id)
-			return
+			return false
 		edge_id = edge_id.to_int()
 		
 		# Get vertex numbers
@@ -635,7 +654,7 @@ func load_fe() -> void:
 			if !cur.is_valid_int():
 				error_fe()
 				push_error("Invalid vertex number %s for edge %s" % [cur, edge_id])
-				return
+				return false
 			
 			v_oids[i] = cur.to_int()
 		
@@ -646,8 +665,9 @@ func load_fe() -> void:
 			if v_id[i] == -1:
 				error_fe()
 				push_error("Invalid vertex number %s for edge %s" % [v_oids[i], edge_id])
-				return
+				return false
 		
+		edges.append(edge_scene.instantiate())
 		edges[-1].init( edges.size()-1, vertices[ v_id[0] ], vertices[ v_id[1] ], edge_id )
 		add_child(edges[-1])
 	
@@ -656,9 +676,8 @@ func load_fe() -> void:
 	
 	# Consume faces
 	if !check_and_consume_head("faces"):
-		error_fe()
 		push_error("Faces section not found")
-		return
+		return false
 	
 	while (check_head_is_int()):
 		
@@ -667,7 +686,7 @@ func load_fe() -> void:
 		if !facet_id.is_valid_int():
 			error_fe()
 			push_error("Invalid edge number %s", facet_id)
-			return
+			return false
 		facet_id = facet_id.to_int()
 		
 		# Get edge numbers
@@ -682,7 +701,7 @@ func load_fe() -> void:
 			if !cur.is_valid_int():
 				error_fe()
 				push_error("Invalid edge number %s for facet %s" % [cur, facet_id])
-				return
+				return false
 			
 			e.append(cur.to_int())
 		
@@ -690,7 +709,6 @@ func load_fe() -> void:
 		
 		if e.size() == 4:
 			# Add new vertex in center
-			vertices.append(vertex_scene.instantiate())
 			var coords : PackedFloat32Array
 			coords.resize(3)
 			coords.fill(0)
@@ -708,6 +726,7 @@ func load_fe() -> void:
 			
 			for i in 3: coords[i] /= 4
 			
+			vertices.append(vertex_scene.instantiate())
 			vertices[-1].init( vertices.size()-1, coords )
 			add_child(vertices[-1])
 			
@@ -726,6 +745,8 @@ func load_fe() -> void:
 			# Bodies section
 			
 			# Commands section
+	
+	return true
 
 func erase_fe_comments() -> void:
 	var compos = file_content.find("//")
@@ -738,10 +759,11 @@ func erase_fe_comments() -> void:
 	while compos != -1:
 		file_content = file_content.erase(compos)
 		file_content = file_content.erase(compos)
-		while !(file_content[compos] == "*" and file_content[compos+1] == "/"):
+		while compos < file_content.length() and !(file_content[compos] == "*" and file_content[compos+1] == "/"):
 			file_content = file_content.erase(compos)
-		file_content = file_content.erase(compos)
-		file_content = file_content.erase(compos)
+		if compos < file_content.length():
+			file_content = file_content.erase(compos)
+			file_content = file_content.erase(compos)
 		compos = file_content.find("/*")
 
 func error_fe() -> void:

@@ -4,7 +4,7 @@ var tail : Vector3 = Vector3.ZERO
 var head : Vector3 = Vector3.ZERO
 
 func _ready() -> void:
-	get_node("/root/Main/Body").cam_info_calculated.connect(change_radius)
+	get_node("/root/Controller/Body").cam_info_calculated.connect(change_radius)
 
 func init(_tail, _head) -> void:
 	tail.x = _tail.coords[0]

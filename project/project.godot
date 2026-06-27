@@ -27,10 +27,6 @@ globals="*uid://d0jvd12gg6g6x"
 
 project/assembly_name="godot cpp template"
 
-[editor]
-
-run/main_run_args="-- ../../resource/cube.fe"
-
 [input]
 
 iterate={

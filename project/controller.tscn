@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://degmn3bui161b"]
+
+[ext_resource type="Script" uid="uid://cd04045x1vdav" path="res://controller.gd" id="1_n1geg"]
+[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/body/body.tscn" id="2_dd4ha"]
+
+[node name="Controller" type="Node" unique_id=975899470]
+script = ExtResource("1_n1geg")
+body_scene = ExtResource("2_dd4ha")
+
+[node name="GUI" type="CanvasLayer" parent="." unique_id=601676699]
+
+[node name="HBoxContainer" type="HBoxContainer" parent="GUI" unique_id=225721353]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="IterateButton" type="Button" parent="GUI/HBoxContainer" unique_id=562161601]
+layout_mode = 2
+text = "Iterate"
+
+[node name="IterateButtonN" type="Button" parent="GUI/HBoxContainer" unique_id=727556754]
+layout_mode = 2
+text = "Iterate n times"
+
+[node name="NIteration" type="LineEdit" parent="GUI/HBoxContainer" unique_id=1068495011]
+layout_mode = 2
+text = "1"
+placeholder_text = "1"
+
+[node name="FileSelect" type="VBoxContainer" parent="GUI" unique_id=1012726088]
+visible = false
+custom_minimum_size = Vector2(250, 0)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -125.0
+offset_top = -29.0
+offset_right = 125.0
+offset_bottom = 29.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="GUI/FileSelect" unique_id=725792112]
+layout_mode = 2
+text = "Select a file:"
+
+[node name="LineEdit" type="LineEdit" parent="GUI/FileSelect" unique_id=1220762969]
+layout_mode = 2
+placeholder_text = "File..."
+
+[connection signal="pressed" from="GUI/HBoxContainer/IterateButton" to="." method="_on_iterate_button_pressed"]
+[connection signal="pressed" from="GUI/HBoxContainer/IterateButtonN" to="." method="_on_iterate_button_n_pressed"]
+[connection signal="text_submitted" from="GUI/FileSelect/LineEdit" to="." method="_on_line_edit_text_submitted"]

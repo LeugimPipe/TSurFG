@@ -25,3 +25,8 @@ func print_prompt() -> void:
 	mutex.lock()
 	printraw("> ")
 	mutex.unlock()
+
+func print_file_select_prompt() -> void:
+	mutex.lock()
+	printraw("Select file, or type q to quit: ")
+	mutex.unlock()

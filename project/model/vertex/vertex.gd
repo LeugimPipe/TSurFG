@@ -140,3 +140,10 @@ func iterate() -> void:
 		coords[0] + 0.2*forces[0].coords[0],
 		coords[1] + 0.2*forces[0].coords[1],
 		coords[2] + 0.2*forces[0].coords[2] ]
+
+func delete() -> void:
+	while not forces.is_empty():
+		var f = forces.pop_back()
+		f.queue_free()
+	view.queue_free()
+	queue_free()

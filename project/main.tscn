@@ -1,8 +1,0 @@
-[gd_scene format=3 uid="uid://degmn3bui161b"]
-
-[ext_resource type="Script" uid="uid://cd04045x1vdav" path="res://main.gd" id="1_ig7tw"]
-[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/body/body.tscn" id="2_0xm2m"]
-
-[node name="Main" type="Node" unique_id=975899470]
-script = ExtResource("1_ig7tw")
-body_scene = ExtResource("2_0xm2m")
