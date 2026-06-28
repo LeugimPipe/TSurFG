@@ -24,6 +24,9 @@ signal cam_center_calculated
 var center : Array
 var radius : float
 
+# Force keys
+var GRAD_AREA_KEY : String = "grad_area_key"
+
 # Functions after initialization
 func init() -> void:
 	calc_characteristics()
@@ -39,19 +42,14 @@ func init() -> void:
 func print_info() -> void:
 	globals.printer( "Total area: %s\t" % get_total_area() +
 		"Total energy: %s\t" % get_energy() +
-		"Total volume: %s\t" % get_volume() +
 		"Time step: %s\t" % globals.time_step)
+	
+	print_volume()
 
 func get_total_area() -> float:
 	var ret = 0.
 	for f in facets:
 		ret += f.area()
-	return ret
-
-func get_volume() -> float:
-	var ret = 0.
-	for f in facets:
-		ret += f.volume_contribution()
 	return ret
 
 func get_energy() -> float:
@@ -62,10 +60,23 @@ func get_energy() -> float:
 	
 	return energy
 
+func print_volume() -> void:
+	for b in bodies:
+		print("Volume of body ", b.id, ": ", b.get_volume())
+
+func get_volume() -> float:
+	var ret = 0.
+	for f in facets:
+		ret += f.volume_contribution()
+	return ret
+
 func calc_characteristics() -> void:
 	calc_center()
 	calc_radius()
 	calc_all_ev_vectors()
+	
+	for b in bodies:
+		calc_volume(b)
 
 func calc_center() -> void:
 	var ret : Array
@@ -112,38 +123,83 @@ func calc_radius() -> void:
 	
 	radius = ret
 
+func calc_volume(body) -> void:
+	var vol = 0.
+	for f in body.facets:
+		vol += f.volume_contribution()
+	body.set_volume(vol)
+
 func reset_cam() -> void:
 	cam_info_calculated.emit(center, radius)
 
 func focus_cam() -> void:
 	cam_center_calculated.emit(center)
 
-func calc_all_ev_vectors() -> void:
-	calc_forces()
-
-func calc_forces() -> void:
-	set_forces_zero()
-	
-	# Force 1: Gradient of area
-	for v in vertices:
-		calc_grad_area_vertex(v)
-
-func calc_grad_area_vertex(vertex) -> void:
-	for f_id in vertex.con_facets:
-		var vector = facets[ f_id ].get_oposite_side_rotated(vertex)
-		
-		vertex.forces[0].coords = [
-			vertex.forces[0].coords[0] + .5*vector.x,
-			vertex.forces[0].coords[1] + .5*vector.y,
-			vertex.forces[0].coords[2] + .5*vector.z ]
-
-## Calculate magnitude restoration vectors
-func calc_magnitude_restoration_vectors() -> void:
-	pass
+# FORCE CALC
 
 func set_forces_zero() -> void:
 	for v in vertices:
 		v.set_forces_zero()
+
+func calc_all_ev_vectors() -> void:
+	calc_forces()
+
+func calc_forces() -> void:
+	
+	if has_volume_constraint():
+		calc_volume_gradient()
+	
+	# Force 1: Gradient of area
+	for v in vertices:
+		calc_grad_area_vertex(v)
+	
+	# Project forces
+	if has_volume_constraint():
+		pass
+
+func calc_grad_area_vertex(vertex) -> void:
+	vertex.set_force_zero( GRAD_AREA_KEY )
+	for f_id in vertex.con_facets:
+		var vector = facets[ f_id ].get_oposite_side_rotated(vertex)
+		
+		vertex.add_force(GRAD_AREA_KEY, [.5*vector.x, .5*vector.y, .5*vector.z] )
+
+## MAGNITUDE RESTORATION
+
+func has_volume_constraint() -> bool:
+	for b in bodies:
+		if b.volume_constraint >= 0.0: return true
+	return false
+
+## Calculate magnitude restoration vectors
+func calc_magnitude_restoration_vectors() -> void:
+	# Volume constraints
+	calc_volume_gradient()
+
+## Calculates all volume gradients for each body
+func calc_volume_gradient() -> void:
+	for b in bodies:
+		calc_volume_gradient_body(b)
+		
+		for v in vertices:
+			print(v.forces[b.GRAD_VOLUME_BODY].coords)
+
+## For given body, calculates volume gradient for all vertices.
+## Note: gradient is zero if the vertex is not part of the body.
+func calc_volume_gradient_body(body) -> void:
+	for vertex in vertices:
+		vertex.set_force_zero( body.GRAD_VOLUME_BODY )
+		
+		for fid in vertex.con_facets:
+			var f = facets[fid]
+			if body.has_facet( facets[fid] ):
+				var q = f.get_next_vertex(vertex).get_as_vector()
+				var r = f.get_prev_vertex(vertex).get_as_vector()
+				var prod = q.cross(r)
+				
+				vertex.add_force( body.GRAD_VOLUME_BODY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
+
+# ITERATION
 
 func save_coords() -> void:
 	for v in vertices:
@@ -154,10 +210,12 @@ func restore_coords() -> void:
 		v.restore_coords()
 
 func alter_coordinates() -> void:
+	# Force 1
+	# Gradient of area
 	for v in vertices:
-		v.apply_forces()
+		v.apply_forces(GRAD_AREA_KEY)
 	
-	calc_magnitude_restoration_vectors()
+	# calc_magnitude_restoration_vectors()
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate() -> void:
@@ -234,10 +292,13 @@ func iterate_n(n : int = 1, terminal : bool = false) -> void:
 	# Allow terminal thread to continue
 	if terminal: globals.semaphore.post()
 
+# REFINE
+
 func refine() -> void:
 	pass
 
 # GET ID FROM ORIGINAL ID
+
 func v_get_id_from_oid(_oid: int) -> int:
 	for v in vertices:
 		if v.oid == _oid: return v.get_id()
@@ -256,6 +317,7 @@ func f_get_ids_from_oid(_oid : int) -> PackedInt32Array:
 	return ret
 
 # GEOMETRY UNLOAD
+
 func unload() -> void:
 	for v in vertices:
 		v.queue_free()

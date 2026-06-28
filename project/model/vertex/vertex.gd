@@ -34,9 +34,10 @@ var con_facets : PackedInt32Array = []
 var view
 
 @export var force_scene : PackedScene
+
 # List of forces acting on the node
-# Array of array of Force nodes
-var forces : Array = []
+# Dictionary of Force nodes
+var forces : Dictionary[String, Variant]
 
 func save_coords() -> void:
 	saved_coords = coords.duplicate()
@@ -59,15 +60,6 @@ func init(_id : int, _coords : Array = [], _oid : int = -1, _fixed : bool = fals
 	
 	view.init(self)
 	add_child(view)
-	
-	# Force init
-	var f_coords : PackedFloat32Array
-	f_coords.resize( coords.size() )
-	f_coords.fill(0.)
-	var zeroforce = force_scene.instantiate()
-	zeroforce.init(f_coords)
-	forces.append(zeroforce)
-	add_child(forces[0])
 
 func get_id() -> int:
 	return id
@@ -128,22 +120,51 @@ func get_as_vector():
 		if coords.size() == 3:
 			return Vector3(coords[0], coords[1], coords[2])
 
+## Creates zero force with given key
+func init_force(key : String) -> void:
+	var f : PackedFloat32Array
+	f.resize(coords.size())
+	f.fill(0.)
+	forces[key] = force_scene.instantiate()
+	forces[key].init(f)
+	add_child(forces[key])
+
+## Sets given force to zero if it exists.
+## If it doesn't, it inits it at zero
+func set_force_zero(key: String) -> void:
+	if not forces.has(key):
+		init_force(key)
+	else:
+		var f : PackedFloat32Array
+		f.resize(coords.size())
+		f.fill(0.)
+		forces[key].init(f)
+
+## Sets all existing forces to zero
 func set_forces_zero() -> void:
-	for f in forces:
+	for key in forces:
+		var f = forces[key]
 		var f_coords : PackedFloat32Array
 		f_coords.resize( coords.size() )
 		f_coords.fill(0.)
 		f.init(f_coords)
 
-func apply_forces() -> void:
-	coords = [
-		coords[0] + globals.time_step * forces[0].coords[0],
-		coords[1] + globals.time_step * forces[0].coords[1],
-		coords[2] + globals.time_step * forces[0].coords[2] ]
+## Add force (supposed to be VectorN)
+## to force indicated by key.
+## If such force does not exist,
+## inits it and adds it
+func add_force(key : String, force : PackedFloat32Array) -> void:
+	if not forces.has(key):
+		init_force(key)
+	
+	forces[key].coords = [
+		forces[key].coords[0] + force[0],
+		forces[key].coords[1] + force[1],
+		forces[key].coords[2] + force[2],
+	]
 
-func delete() -> void:
-	while not forces.is_empty():
-		var f = forces.pop_back()
-		f.queue_free()
-	view.queue_free()
-	queue_free()
+func apply_forces(key : String) -> void:
+	coords = [
+		coords[0] + globals.time_step * forces[key].coords[0],
+		coords[1] + globals.time_step * forces[key].coords[1],
+		coords[2] + globals.time_step * forces[key].coords[2] ]
