@@ -14,12 +14,12 @@ var volume : float = -1.0
 
 var volume_constraint : float = -1.0
 
-var GRAD_VOLUME_BODY : String
+var GRAD_VOLUME_BODY_KEY : String
 
 func init(_id = -1, _oid = -1) -> void:
 	if _id != -1: id = _id
 	if _oid != -1: oid = _oid
-	GRAD_VOLUME_BODY = "grad_volume_body_" + str(id) + "_key"
+	GRAD_VOLUME_BODY_KEY = "grad_volume_body_" + str(id) + "_key"
 
 func get_id() -> int:
 	return id

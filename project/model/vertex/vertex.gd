@@ -168,3 +168,9 @@ func apply_forces(key : String) -> void:
 		coords[0] + globals.time_step * forces[key].coords[0],
 		coords[1] + globals.time_step * forces[key].coords[1],
 		coords[2] + globals.time_step * forces[key].coords[2] ]
+
+func apply_vector( key : String) -> void:
+	coords = [
+		coords[0] + forces[key].coords[0],
+		coords[1] + forces[key].coords[1],
+		coords[2] + forces[key].coords[2] ]

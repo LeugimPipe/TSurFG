@@ -26,6 +26,26 @@ var radius : float
 
 # Force keys
 var GRAD_AREA_KEY : String = "grad_area_key"
+var REST_VECT_KEY : String = "rest_vect_key"
+
+# FORCE PROJECTION UTILS
+
+## Matrix needed to conserve magnitudes
+var K : SquareMatrix
+
+## Vector needed to conserve magnitudes
+var F : VectorN
+
+## Vector to store factors to project forces
+var A : VectorN
+
+# RESTORATION VECTORS UTILS
+
+## Stores the differences between actual and target values
+var DELTA : VectorN
+
+## Vector to store factors to calculate the projection vectors
+var C : VectorN
 
 # Functions after initialization
 func init() -> void:
@@ -145,17 +165,24 @@ func calc_all_ev_vectors() -> void:
 	calc_forces()
 
 func calc_forces() -> void:
-	
-	if has_volume_constraint():
-		calc_volume_gradient()
-	
 	# Force 1: Gradient of area
 	for v in vertices:
 		calc_grad_area_vertex(v)
 	
 	# Project forces
 	if has_volume_constraint():
-		pass
+		calc_volume_gradient()
+		calc_magnitude_constraint_matrix()
+		calc_magnitude_constraint_force_product_vector()
+		calc_force_projection_factor_vector()
+		
+		for i in bodies.size():
+			for v in vertices:
+				v.add_force( GRAD_AREA_KEY, [
+					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[0],
+					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[1],
+					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[2]
+					] )
 
 func calc_grad_area_vertex(vertex) -> void:
 	vertex.set_force_zero( GRAD_AREA_KEY )
@@ -164,7 +191,7 @@ func calc_grad_area_vertex(vertex) -> void:
 		
 		vertex.add_force(GRAD_AREA_KEY, [.5*vector.x, .5*vector.y, .5*vector.z] )
 
-## MAGNITUDE RESTORATION
+# MAGNITUDE RESTORATION
 
 func has_volume_constraint() -> bool:
 	for b in bodies:
@@ -175,20 +202,30 @@ func has_volume_constraint() -> bool:
 func calc_magnitude_restoration_vectors() -> void:
 	# Volume constraints
 	calc_volume_gradient()
+	calc_magnitude_constraint_matrix()
+	calc_magnitude_differences_vector()
+	calc_magnitude_restoration_vectors_factors()
+	
+	for vertex in vertices:
+		vertex.set_force_zero( REST_VECT_KEY )
+		
+		for i in bodies.size():
+			vertex.add_force(REST_VECT_KEY,
+				[ C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[0],
+				C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[1],
+				C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[2],
+				] )
 
 ## Calculates all volume gradients for each body
 func calc_volume_gradient() -> void:
 	for b in bodies:
 		calc_volume_gradient_body(b)
-		
-		for v in vertices:
-			print(v.forces[b.GRAD_VOLUME_BODY].coords)
 
 ## For given body, calculates volume gradient for all vertices.
 ## Note: gradient is zero if the vertex is not part of the body.
 func calc_volume_gradient_body(body) -> void:
 	for vertex in vertices:
-		vertex.set_force_zero( body.GRAD_VOLUME_BODY )
+		vertex.set_force_zero( body.GRAD_VOLUME_BODY_KEY )
 		
 		for fid in vertex.con_facets:
 			var f = facets[fid]
@@ -197,7 +234,54 @@ func calc_volume_gradient_body(body) -> void:
 				var r = f.get_prev_vertex(vertex).get_as_vector()
 				var prod = q.cross(r)
 				
-				vertex.add_force( body.GRAD_VOLUME_BODY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
+				vertex.add_force( body.GRAD_VOLUME_BODY_KEY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
+
+func calc_magnitude_constraint_matrix() -> void:
+	K = SquareMatrix.new()
+	K.init(bodies.size())
+	
+	for i in bodies.size():
+		for j in i+1:
+			var dot_product : float = 0.
+			for vertex in vertices:
+				for d in globals.AMBIENT_DIMENSION:
+					dot_product += vertex.forces[ bodies[j].GRAD_VOLUME_BODY_KEY ].coords[d] * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[d]
+			
+			K.set_ij(i, j, dot_product)
+			K.set_ij(j, i, dot_product)
+
+func calc_magnitude_constraint_force_product_vector() -> void:
+	F = VectorN.new()
+	F.init(bodies.size())
+	
+	for i in bodies.size():
+		var dot_product : float = 0.
+		for vertex in vertices:
+			for d in globals.AMBIENT_DIMENSION:
+				## Should sum every force before
+				dot_product += vertex.forces[ GRAD_AREA_KEY ].coords[d] * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[d]
+		
+		F.set_i(i, dot_product)
+
+func calc_force_projection_factor_vector() -> void:
+	A = VectorN.new()
+	A.init(bodies.size())
+	
+	A = K.get_inverse().product_by_vector(F)
+
+func calc_magnitude_differences_vector() -> void:
+	DELTA = VectorN.new()
+	DELTA.init(bodies.size())
+	
+	for i in DELTA.dimension:
+		calc_volume(bodies[i])
+		DELTA.set_i(i, bodies[i].volume_constraint - bodies[i].get_volume())
+
+func calc_magnitude_restoration_vectors_factors() -> void:
+	C = VectorN.new()
+	C.init(bodies.size())
+	
+	C = K.get_inverse().product_by_vector(DELTA)
 
 # ITERATION
 
@@ -215,7 +299,11 @@ func alter_coordinates() -> void:
 	for v in vertices:
 		v.apply_forces(GRAD_AREA_KEY)
 	
-	# calc_magnitude_restoration_vectors()
+	if has_volume_constraint():
+		calc_magnitude_restoration_vectors()
+		
+		for v in vertices:
+			v.apply_vector(REST_VECT_KEY)
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate() -> void:
