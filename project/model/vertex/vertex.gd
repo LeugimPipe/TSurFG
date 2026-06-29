@@ -99,6 +99,12 @@ func is_edge_connected_id(e_id : int) -> bool:
 			return true
 	return false
 
+## Empties arrays recording connections
+func disconnect_everything() -> void:
+	con_vertices.clear()
+	con_edges.clear()
+	con_facets.clear()
+
 func get_edge_index_from_vertex(vector) -> float:
 	return get_edge_index_from_v_id(vector.get_id())
 
@@ -164,12 +170,14 @@ func add_force(key : String, force : PackedFloat32Array) -> void:
 	]
 
 func apply_forces(key : String) -> void:
+	if not forces.has(key): return
 	coords = [
 		coords[0] + globals.time_step * forces[key].coords[0],
 		coords[1] + globals.time_step * forces[key].coords[1],
 		coords[2] + globals.time_step * forces[key].coords[2] ]
 
 func apply_vector( key : String) -> void:
+	if not forces.has(key): return
 	coords = [
 		coords[0] + forces[key].coords[0],
 		coords[1] + forces[key].coords[1],

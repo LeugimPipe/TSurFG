@@ -59,10 +59,13 @@ func init() -> void:
 	
 	print_info()
 
-func print_info() -> void:
-	globals.printer( "Total area: %s\t" % get_total_area() +
-		"Total energy: %s\t" % get_energy() +
-		"Time step: %s\t" % globals.time_step)
+func print_info(i : int = -1) -> void:
+	var s : String = ""
+	if i != -1: s += str(i+1) + ": "
+	s += ("Total area: %s\t" % get_total_area() +
+		"Total energy: %s\t" % get_energy())
+	if i != -1: s += "Time step: %s\t" % globals.time_step
+	globals.printer(s)
 	
 	print_volume()
 
@@ -306,7 +309,7 @@ func alter_coordinates() -> void:
 			v.apply_vector(REST_VECT_KEY)
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
-func iterate() -> void:
+func iterate( i: int = -1 ) -> void:
 	if globals.optimizing_time_step:
 		
 		globals.CALCULATING_STEP = true
@@ -371,19 +374,100 @@ func iterate() -> void:
 	alter_coordinates()
 	
 	calc_characteristics()
-	print_info()
+	print_info(i)
 
 func iterate_n(n : int = 1, terminal : bool = false) -> void:
 	for i in n:
-		iterate()
+		iterate(i)
 	
 	# Allow terminal thread to continue
 	if terminal: globals.semaphore.post()
 
 # REFINE
 
-func refine() -> void:
-	pass
+func refine(terminal : bool = false) -> void:
+	var new_edges = []
+	var old_n_edges = edges.size()
+	var old_n_vertices = vertices.size()
+	var new_facets = []
+	var old_n_facets = facets.size()
+	
+	for v in vertices:
+		v.disconnect_everything()
+	
+	for e in edges:
+		e.disconnect_everything()
+	
+	for e in edges:
+		# Add new vertices
+		# One for each edge
+		# New vertices have ids ranging
+		# from old_n_vertices
+		# to old_n_vertices + old_n_edges
+		# Central vertex of edge i has id
+		# old_n_vertices + i
+		vertices.append(vertex_scene.instantiate())
+		vertices[-1].init( vertices.size()-1, e.midpoint() )
+		add_child( vertices[-1] )
+		
+		# Add new edges, one for each old edge
+		# New edges have ids ranging from old_n_edges
+		# to 2*old_n_edges-1
+		# Edge descendant of edge i has id old_n_edges+i
+		new_edges.append( edge_scene.instantiate() )
+		new_edges[-1].init( old_n_edges+new_edges.size()-1, vertices[-1], e.head)
+		add_child( new_edges[-1] )
+		
+		# Reinit old edge
+		e.init( e.get_id(), e.tail, vertices[-1] )
+	
+	# Add new edges to edges array
+	for e in new_edges:
+		edges.append(e)
+	
+	for f in facets:
+		# Add new edges uniting the midpoints of the old edges
+		edges.append( edge_scene.instantiate() )
+		edges[-1].init( edges.size()-1, vertices[ old_n_vertices + f.edge0_id ], vertices[ old_n_vertices + f.edge1_id ] )
+		add_child(edges[-1])
+		
+		edges.append( edge_scene.instantiate() )
+		edges[-1].init( edges.size()-1, vertices[ old_n_vertices + f.edge1_id ], vertices[ old_n_vertices + f.edge2_id ] )
+		add_child(edges[-1])
+		
+		edges.append( edge_scene.instantiate() )
+		edges[-1].init( edges.size()-1, vertices[ old_n_vertices + f.edge2_id ], vertices[ old_n_vertices + f.edge0_id ] )
+		add_child(edges[-1])
+		
+		# New facets
+		new_facets.append( facet_scene.instantiate() )
+		new_facets[-1].init( old_n_facets + new_facets.size()-1, edges[ f.edge0_id + int(f.inversee0)*old_n_edges ], edges[-1], edges[ f.edge2_id + int(not f.inversee2)*old_n_edges ], f.inversee0, true, f.inversee2)
+		add_child(new_facets[-1])
+		
+		new_facets.append( facet_scene.instantiate() )
+		new_facets[-1].init( old_n_facets + new_facets.size()-1, edges[ f.edge0_id + int(not f.inversee0)*old_n_edges ], edges[ f.edge1_id + int(f.inversee1)*old_n_edges ], edges[-3], f.inversee0, f.inversee1, true)
+		add_child(new_facets[-1])
+		
+		new_facets.append( facet_scene.instantiate() )
+		new_facets[-1].init( old_n_facets + new_facets.size()-1, edges[-2], edges[ f.edge1_id + int(not f.inversee1)*old_n_edges ], edges[ f.edge2_id + int(f.inversee2)*old_n_edges ], true, f.inversee1, f.inversee2)
+		add_child(new_facets[-1])
+		
+		# Reinit the facet to be the central facet now
+		f.init( f.get_id(), edges[-3], edges[-2], edges[-1])
+		
+		# Add new facets to bodies
+		for b in bodies:
+			if b.has_facet(f):
+				b.add_facet(new_facets[-3])
+				b.add_facet(new_facets[-2])
+				b.add_facet(new_facets[-1])
+	
+	# Add new facets to facet array
+	for f in new_facets:
+		facets.append(f)
+	
+	# Allow terminal thread to continue
+	if terminal: globals.semaphore.post()
 
 # GET ID FROM ORIGINAL ID
 

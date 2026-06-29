@@ -5,7 +5,7 @@
 
 [node name="Controller" type="Node" unique_id=975899470]
 script = ExtResource("1_n1geg")
-body_scene = ExtResource("2_dd4ha")
+geom_scene = ExtResource("2_dd4ha")
 
 [node name="GUI" type="CanvasLayer" parent="." unique_id=601676699]
 
@@ -41,6 +41,10 @@ text = "0.1"
 placeholder_text = "time step"
 editable = false
 
+[node name="RefineButton" type="Button" parent="GUI/HBoxContainer" unique_id=962842573]
+layout_mode = 2
+text = "Refine geometry"
+
 [node name="FileSelect" type="VBoxContainer" parent="GUI" unique_id=1012726088]
 visible = false
 custom_minimum_size = Vector2(250, 0)
@@ -68,4 +72,5 @@ placeholder_text = "File..."
 [connection signal="pressed" from="GUI/HBoxContainer/IterateButtonN" to="." method="_on_iterate_button_n_pressed"]
 [connection signal="pressed" from="GUI/HBoxContainer/ChangeTimeStepMode" to="." method="_on_change_time_step_mode_pressed"]
 [connection signal="pressed" from="GUI/HBoxContainer/ChangeTimeStep" to="." method="_on_change_time_step_pressed"]
+[connection signal="pressed" from="GUI/HBoxContainer/RefineButton" to="." method="_on_refine_button_pressed"]
 [connection signal="text_submitted" from="GUI/FileSelect/LineEdit" to="." method="_on_line_edit_text_submitted"]

@@ -9,7 +9,7 @@ var head
 var tail_id
 var head_id
 
-# Stores which facets are connected to this vertex
+# Stores which facets are connected to this edge
 var con_facets : PackedInt32Array = []
 
 var view
@@ -39,6 +39,10 @@ func init(_id : int = -1, _tail = null, _head = null, _oid : int = -1 ) -> void:
 func connect_facet(facet) -> void:
 	var f_id = facet.get_id()
 	con_facets.append(f_id)
+
+## Empties arrays recording connections
+func disconnect_everything() -> void:
+	con_facets.clear()
 
 func get_id() -> int:
 	return id
