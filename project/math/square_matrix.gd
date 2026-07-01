@@ -29,7 +29,11 @@ func get_submatrix( _i : int, _j : int) -> SquareMatrix:
 		if i != _i:
 			for j in dimension:
 				if j != _j:
-					sub.set_ij(i, j, content[i][j])
+					var ni = i
+					var nj = j
+					if i > _i: ni -= 1
+					if j > _j: nj -= 1
+					sub.set_ij(ni, nj, content[i][j])
 	
 	return sub
 
@@ -70,7 +74,7 @@ func get_transpose() -> SquareMatrix:
 	
 	for i in dimension:
 		for j in dimension:
-			t.set_ij(i, j, get_ij(j, j))
+			t.set_ij(i, j, get_ij(i, j))
 	
 	return t
 

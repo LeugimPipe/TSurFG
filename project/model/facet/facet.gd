@@ -25,6 +25,14 @@ var v0_id
 var v1_id
 var v2_id
 
+## Stores the id of the body to which it is connected.
+## The facet is part of the body with its correct orientation.
+var body_id : int = -1
+
+## Stores the id of the body to which it is connected.
+## The facet is part of the body with its inverse orientation.
+var bodyinverse_id : int = -1
+
 func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false,  _oid : int = -1) -> void:
 	if view != null: view.queue_free()
 	
@@ -172,3 +180,45 @@ func center() -> Array:
 
 func get_id() -> int:
 	return id
+
+func connect_body(body, inverse : bool = false) -> void:
+	var b_id : int = body.get_id()
+	if body_id == b_id or bodyinverse_id == b_id:
+		push_error("Facet ", get_id(), " is already connected to body ", b_id)
+		return
+	
+	if b_id == body_id:
+		push_error("Facet ", get_id(), " is already connected to body ", b_id)
+		return
+	
+	if b_id == bodyinverse_id:
+		push_error("Facet ", get_id(), " is already connected to body ", b_id, " with inverse orientation")
+		return
+
+	if inverse:
+		if bodyinverse_id != -1:
+			push_error("Cannot connect facet ", get_id(), " to body ", b_id, " with inverse orientation: it is already connected to body ", bodyinverse_id, " with inverse orientation.")
+			return
+		
+		bodyinverse_id = b_id
+	
+	else:
+		if body_id != -1:
+			push_error("Cannot connect facet ", get_id(), " to body ", b_id, ": it is already connected to body ", body_id, ".")
+			return
+		
+		body_id = b_id
+
+func is_body_connected_id(b_id : int) -> bool:
+	if b_id == body_id: return true
+	if b_id == bodyinverse_id: return true
+	return false
+
+func is_body_connected(body) -> bool:
+	return is_body_connected_id(body.get_id())
+
+func is_body_inverse_id(b_id : int) -> bool:
+	return b_id == bodyinverse_id
+
+func is_body_inverse(body) -> bool:
+	return is_body_inverse_id(body.get_id())

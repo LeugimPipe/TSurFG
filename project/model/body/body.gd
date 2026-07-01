@@ -8,7 +8,9 @@ var oid : int = -1
 var facets : Array = []
 
 ## Ids of facets conforming the body
-var facet_ids : PackedInt32Array = []
+## Negative ids mean the facet should be considered in the opposite orientation
+## -0.1 is the negative for 0
+var facet_ids : PackedFloat32Array = []
 
 var volume : float = -1.0
 
@@ -30,12 +32,18 @@ func set_volume(v : float) -> void:
 func get_volume() -> float:
 	return volume
 
-func add_facet(_facet) -> void:
+func add_facet(_facet, op : bool = false) -> void:
 	facets.append(_facet)
-	facet_ids.append(_facet.get_id())
+	var fid = _facet.get_id()
+	if op:
+		fid = -fid
+		if fid == 0: fid = -0.1
+	facet_ids.append(fid)
+	
+	_facet.connect_body(self, op)
 
 func add_vol_constraint(_vol : float) -> void:
 	volume_constraint = _vol
 
 func has_facet( facet ) -> bool:
-	return facet_ids.has(facet.get_id())
+	return facets.has(facet)

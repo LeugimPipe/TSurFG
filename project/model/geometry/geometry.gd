@@ -10,6 +10,9 @@ var edges : Array
 var facets : Array
 var bodies : Array
 
+## Body ids of bodies with volume constraints
+var vol_constraint_bids : PackedInt32Array
+
 # Content of the file being processed
 var file_content : String
 
@@ -148,8 +151,14 @@ func calc_radius() -> void:
 
 func calc_volume(body) -> void:
 	var vol = 0.
-	for f in body.facets:
-		vol += f.volume_contribution()
+	for i in body.facets.size():
+		var f = body.facets[i]
+		var vol_contr : float = f.volume_contribution()
+		# If the id is negative the volume contribution should be the opposite
+		# as the actual volume contribution is the one that would result from a
+		# facet with the opposite orientation.
+		if body.facet_ids[i] < 0 : vol_contr = -vol_contr
+		vol += vol_contr
 	body.set_volume(vol)
 
 func reset_cam() -> void:
@@ -179,12 +188,12 @@ func calc_forces() -> void:
 		calc_magnitude_constraint_force_product_vector()
 		calc_force_projection_factor_vector()
 		
-		for i in bodies.size():
+		for i in vol_constraint_bids.size():
 			for v in vertices:
 				v.add_force( GRAD_AREA_KEY, [
-					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[0],
-					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[1],
-					-A.get_i(i) * v.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[2]
+					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[0],
+					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[1],
+					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[2]
 					] )
 
 func calc_grad_area_vertex(vertex) -> void:
@@ -197,9 +206,7 @@ func calc_grad_area_vertex(vertex) -> void:
 # MAGNITUDE RESTORATION
 
 func has_volume_constraint() -> bool:
-	for b in bodies:
-		if b.volume_constraint >= 0.0: return true
-	return false
+	return vol_constraint_bids.size() > 0
 
 ## Calculate magnitude restoration vectors
 func calc_magnitude_restoration_vectors() -> void:
@@ -212,17 +219,17 @@ func calc_magnitude_restoration_vectors() -> void:
 	for vertex in vertices:
 		vertex.set_force_zero( REST_VECT_KEY )
 		
-		for i in bodies.size():
-			vertex.add_force(REST_VECT_KEY,
-				[ C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[0],
-				C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[1],
-				C.get_i(i) * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[2],
+		for i in vol_constraint_bids.size():
+			vertex.add_force( REST_VECT_KEY,
+				[ C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[0],
+				C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[1],
+				C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[2],
 				] )
 
-## Calculates all volume gradients for each body
+## Calculates all volume gradients for each constrained body
 func calc_volume_gradient() -> void:
-	for b in bodies:
-		calc_volume_gradient_body(b)
+	for b_id in vol_constraint_bids:
+		calc_volume_gradient_body( bodies[b_id] )
 
 ## For given body, calculates volume gradient for all vertices.
 ## Note: gradient is zero if the vertex is not part of the body.
@@ -232,57 +239,62 @@ func calc_volume_gradient_body(body) -> void:
 		
 		for fid in vertex.con_facets:
 			var f = facets[fid]
-			if body.has_facet( facets[fid] ):
+			if f.is_body_connected(body):
 				var q = f.get_next_vertex(vertex).get_as_vector()
 				var r = f.get_prev_vertex(vertex).get_as_vector()
 				var prod = q.cross(r)
+				
+				# If the id is negative the volume contribution should be the opposite
+				# as the actual volume contribution is the one that would result from a
+				# facet with the opposite orientation.
+				if f.is_body_inverse(body): prod = -prod
 				
 				vertex.add_force( body.GRAD_VOLUME_BODY_KEY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
 
 func calc_magnitude_constraint_matrix() -> void:
 	K = SquareMatrix.new()
-	K.init(bodies.size())
+	K.init( vol_constraint_bids.size() )
 	
-	for i in bodies.size():
+	for i in vol_constraint_bids.size():
 		for j in i+1:
 			var dot_product : float = 0.
 			for vertex in vertices:
 				for d in globals.AMBIENT_DIMENSION:
-					dot_product += vertex.forces[ bodies[j].GRAD_VOLUME_BODY_KEY ].coords[d] * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[d]
+					dot_product += vertex.forces[ bodies[ vol_constraint_bids[j] ].GRAD_VOLUME_BODY_KEY ].coords[d] * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[d]
 			
 			K.set_ij(i, j, dot_product)
 			K.set_ij(j, i, dot_product)
 
 func calc_magnitude_constraint_force_product_vector() -> void:
 	F = VectorN.new()
-	F.init(bodies.size())
+	F.init(vol_constraint_bids.size())
 	
-	for i in bodies.size():
+	for i in vol_constraint_bids.size():
 		var dot_product : float = 0.
 		for vertex in vertices:
 			for d in globals.AMBIENT_DIMENSION:
-				## Should sum every force before
-				dot_product += vertex.forces[ GRAD_AREA_KEY ].coords[d] * vertex.forces[ bodies[i].GRAD_VOLUME_BODY_KEY ].coords[d]
+				# Should sum every force before
+				dot_product += vertex.forces[ GRAD_AREA_KEY ].coords[d] * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[d]
 		
 		F.set_i(i, dot_product)
 
 func calc_force_projection_factor_vector() -> void:
 	A = VectorN.new()
-	A.init(bodies.size())
+	A.init(vol_constraint_bids.size())
 	
 	A = K.get_inverse().product_by_vector(F)
 
 func calc_magnitude_differences_vector() -> void:
 	DELTA = VectorN.new()
-	DELTA.init(bodies.size())
+	DELTA.init(vol_constraint_bids.size())
 	
 	for i in DELTA.dimension:
-		calc_volume(bodies[i])
-		DELTA.set_i(i, bodies[i].volume_constraint - bodies[i].get_volume())
+		calc_volume(bodies[ vol_constraint_bids[i] ])
+		DELTA.set_i(i, bodies[ vol_constraint_bids[i] ].volume_constraint - bodies[ vol_constraint_bids[i] ].get_volume())
 
 func calc_magnitude_restoration_vectors_factors() -> void:
 	C = VectorN.new()
-	C.init(bodies.size())
+	C.init(vol_constraint_bids.size())
 	
 	C = K.get_inverse().product_by_vector(DELTA)
 
@@ -457,10 +469,11 @@ func refine(terminal : bool = false) -> void:
 		
 		# Add new facets to bodies
 		for b in bodies:
-			if b.has_facet(f):
-				b.add_facet(new_facets[-3])
-				b.add_facet(new_facets[-2])
-				b.add_facet(new_facets[-1])
+			if f.is_body_connected(b):
+				var inverse : bool = f.is_body_inverse(b)
+				b.add_facet(new_facets[-3], inverse)
+				b.add_facet(new_facets[-2], inverse)
+				b.add_facet(new_facets[-1], inverse)
 	
 	# Add new facets to facet array
 	for f in new_facets:
@@ -632,6 +645,7 @@ func consume_word(n: int = 1) -> void:
 func check_head_is_int() -> bool:
 	for i in 10:
 		if check_head( str(i) ): return true
+		if check_head( str(-i) ): return true
 	return false
 
 # LOAD PLY
@@ -1097,7 +1111,7 @@ func load_fe() -> bool:
 		add_child(bodies[-1])
 		
 		# Get body facet list
-		while check_head_is_int():
+		while file_content[0] != "\n" and  check_head_is_int():
 			var cur = ""
 			while !is_new_line_or_white(file_content[0]):
 				cur += file_content[0]
@@ -1109,36 +1123,36 @@ func load_fe() -> bool:
 				push_error("Invalid facet number %s for body %s" % [cur, body_id])
 				return false
 			
+			cur = cur.to_int()
 			var f_ids : PackedInt32Array
-			f_ids = f_get_ids_from_oid(cur.to_int())
+			f_ids = f_get_ids_from_oid( abs(cur) ) 
 			for f_id in f_ids:
-				bodies[-1].add_facet( facets[f_id] )
-		
-		if not check_head("read"):
-		
-			while file_content[0] != "\n":
-				if check_head("volume"):
-					# Consume "volume"
-					consume_word()
+				bodies[-1].add_facet( facets[f_id], cur < 0 )
+			
+		while file_content[0] != "\n":
+				
+			if check_head("volume"):
+				# Consume "volume"
+				consume_word()
 					
-					# Get volume constraint value
-					var cur = ""
-					while !is_new_line_or_white(file_content[0]):
-						cur += file_content[0]
-						consume(1)
-					consume_white_space()
+				# Get volume constraint value
+				var cur = ""
+				while !is_new_line_or_white(file_content[0]):
+					cur += file_content[0]
+					consume(1)
+				consume_white_space()
 				
-					if not cur.is_valid_float():
-						error_fe()
-						push_error("Invalid volume constraint %s for body %s" % [cur, body_id])
-						return false
-				
-					bodies[-1].add_vol_constraint(cur.to_float())
+				if not cur.is_valid_float():
+					error_fe()
+					push_error("Invalid volume constraint %s for body %s" % [cur, body_id])
+					return false
+					
+				bodies[-1].add_vol_constraint(cur.to_float())
+				vol_constraint_bids.append( bodies[-1].get_id() )
 			
-				else: consume(1)
-			
-			# Consume rest of line
-			consume_line()
+			else: consume(1)
+		# Consume rest of line
+		consume_line()
 	
 	# Commands section
 	
