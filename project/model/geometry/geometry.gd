@@ -1,4 +1,5 @@
 extends Node
+class_name Geometry
 
 @export var vertex_scene : PackedScene
 @export var edge_scene : PackedScene
@@ -8,7 +9,11 @@ extends Node
 var vertices : Array
 var edges : Array
 var facets : Array
-var bodies : Array
+
+var bodies : Dictionary
+var n_last_body : int = 0
+## Emitted when bodies dictionary is altered
+signal bodies_changed
 
 ## Body ids of bodies with volume constraints
 var vol_constraint_bids : PackedInt32Array
@@ -50,6 +55,8 @@ var DELTA : VectorN
 ## Vector to store factors to calculate the projection vectors
 var C : VectorN
 
+var file_write_strat : FileWrite
+
 # Functions after initialization
 func init() -> void:
 	calc_characteristics()
@@ -69,8 +76,6 @@ func print_info(i : int = -1) -> void:
 		"Total energy: %s\t" % get_energy())
 	if i != -1: s += "Time step: %s\t" % globals.time_step
 	globals.printer(s)
-	
-	print_volume()
 
 func get_total_area() -> float:
 	var ret = 0.
@@ -87,8 +92,9 @@ func get_energy() -> float:
 	return energy
 
 func print_volume() -> void:
-	for b in bodies:
-		print("Volume of body ", b.id, ": ", b.get_volume())
+	for b_id in bodies:
+		var b = bodies[b_id]
+		print("Volume of body ", b_id, ": ", b.get_volume())
 
 func get_volume() -> float:
 	var ret = 0.
@@ -101,8 +107,8 @@ func calc_characteristics() -> void:
 	calc_radius()
 	calc_all_ev_vectors()
 	
-	for b in bodies:
-		calc_volume(b)
+	for b_id in bodies:
+		calc_volume(bodies[b_id])
 
 func calc_center() -> void:
 	var ret : Array
@@ -167,6 +173,24 @@ func reset_cam() -> void:
 func focus_cam() -> void:
 	cam_center_calculated.emit(center)
 
+# ADD ELEMENTS
+
+## Adds body with given id
+func add_body(b_id : int, b_oid : int = -1 ) -> void:
+	bodies[b_id] = body_scene.instantiate()
+	bodies[b_id].init(b_id, b_oid)
+	bodies[b_id].constrain_changed.connect(_on_volume_constraints_changed)
+	bodies[b_id].body_removed.connect(_on_body_removed)
+	add_child(bodies[b_id])
+
+func _on_add_body_whole() -> void:
+	add_body(n_last_body)
+	for f in facets:
+		bodies[n_last_body].add_facet(f)
+	n_last_body += 1
+	calc_characteristics()
+	bodies_changed.emit(bodies)
+
 # FORCE CALC
 
 func set_forces_zero() -> void:
@@ -204,6 +228,22 @@ func calc_grad_area_vertex(vertex) -> void:
 		vertex.add_force(GRAD_AREA_KEY, [.5*vector.x, .5*vector.y, .5*vector.z] )
 
 # MAGNITUDE RESTORATION
+
+func _on_volume_constraints_changed(b_id : int, constr : bool) -> void:
+	if constr:
+		if not vol_constraint_bids.has(b_id):
+			vol_constraint_bids.append(b_id)
+	else:
+		vol_constraint_bids.erase(b_id)
+	
+	calc_characteristics()
+
+func _on_body_removed(b_id : int) -> void:
+	bodies.erase(b_id)
+	vol_constraint_bids.erase(b_id)
+	bodies_changed.emit(bodies)
+	
+	calc_characteristics()
 
 func has_volume_constraint() -> bool:
 	return vol_constraint_bids.size() > 0
@@ -468,7 +508,8 @@ func refine(terminal : bool = false) -> void:
 		f.init( f.get_id(), edges[-3], edges[-2], edges[-1])
 		
 		# Add new facets to bodies
-		for b in bodies:
+		for b_id in bodies:
+			var b = bodies[b_id]
 			if f.is_body_connected(b):
 				var inverse : bool = f.is_body_inverse(b)
 				b.add_facet(new_facets[-3], inverse)
@@ -481,6 +522,8 @@ func refine(terminal : bool = false) -> void:
 	
 	# Allow terminal thread to continue
 	if terminal: globals.semaphore.post()
+	
+	calc_characteristics()
 
 # GET ID FROM ORIGINAL ID
 
@@ -513,13 +556,17 @@ func unload() -> void:
 	for f in facets:
 		f.queue_free()
 	
-	for b in bodies:
+	for b_id in bodies:
+		var b = bodies[b_id]
 		b.queue_free()
 	
 	vertices.clear()
 	edges.clear()
 	facets.clear()
+	
 	bodies.clear()
+	vol_constraint_bids.clear()
+	n_last_body = 0
 
 # FILE LOAD
 
@@ -893,16 +940,16 @@ func load_ply() -> bool:
 		# Add facet(s)
 		if n_vertices_face == 3:
 			facets.append(facet_scene.instantiate())
-			facets[-1].init( i, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
+			facets[-1].init( facets.size()-1, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[2]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[2] < 0 )
 			add_child(facets[-1])
 			
 		elif n_vertices_face == 4:
 			facets.append(facet_scene.instantiate())
-			facets[-1].init( i*2, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[4]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[4] > 0 )
+			facets[-1].init( facets.size()-1, edges[ abs(e_indices[0]) ], edges[ abs(e_indices[1]) ], edges[ abs(e_indices[4]) ], e_indices[0] < 0, e_indices[1] < 0, e_indices[4] > 0 )
 			add_child(facets[-1])
 			
 			facets.append(facet_scene.instantiate())
-			facets[-1].init( i*2+1, edges[ abs(e_indices[2]) ], edges[ abs(e_indices[3]) ], edges[ abs(e_indices[4]) ], e_indices[2] < 0, e_indices[3] < 0, e_indices[4] < 0 )
+			facets[-1].init( facets.size()-1, edges[ abs(e_indices[2]) ], edges[ abs(e_indices[3]) ], edges[ abs(e_indices[4]) ], e_indices[2] < 0, e_indices[3] < 0, e_indices[4] < 0 )
 			add_child(facets[-1])
 	
 	return true
@@ -1048,7 +1095,16 @@ func load_fe() -> bool:
 			
 			e.append(cur.to_int())
 		
-		# TODO: 3-edge faces
+		if e.size() == 3:
+			var e0 = edges[ e_get_id_from_oid( abs(e[0])) ]
+			var e1 = edges[ e_get_id_from_oid( abs(e[1])) ]
+			var e2 = edges[ e_get_id_from_oid( abs(e[2])) ]
+			
+			facets.append(facet_scene.instantiate())
+			facets[-1].init( facets.size()-1, e0, e1, e2, e[0] < 0, e[1] < 0, e[2] < 0, facet_id )
+			add_child(facets[-1])
+		
+		# TODO: n-edge faces
 		
 		if e.size() == 4:
 			# Add new vertex in center
@@ -1099,16 +1155,15 @@ func load_fe() -> bool:
 	while (check_head_is_int()):
 		
 		# Consume body number
-		var body_id = get_and_consume_head(" ")
-		if !body_id.is_valid_int():
+		var body_oid = get_and_consume_head(" ")
+		if !body_oid.is_valid_int():
 			error_fe()
-			push_error("Invalid body number %s", body_id)
+			push_error("Invalid body number %s", body_oid)
 			return false
-		body_id = body_id.to_int()
+		body_oid = body_oid.to_int()
 		
-		bodies.append(body_scene.instantiate())
-		bodies[-1].init( bodies.size()-1, body_id)
-		add_child(bodies[-1])
+		var b_id = bodies.size()
+		add_body(b_id, body_oid)
 		
 		# Get body facet list
 		while file_content[0] != "\n" and  check_head_is_int():
@@ -1120,14 +1175,14 @@ func load_fe() -> bool:
 			
 			if !cur.is_valid_int():
 				error_fe()
-				push_error("Invalid facet number %s for body %s" % [cur, body_id])
+				push_error("Invalid facet number %s for body %s" % [cur, body_oid])
 				return false
 			
 			cur = cur.to_int()
 			var f_ids : PackedInt32Array
 			f_ids = f_get_ids_from_oid( abs(cur) ) 
 			for f_id in f_ids:
-				bodies[-1].add_facet( facets[f_id], cur < 0 )
+				bodies[b_id].add_facet( facets[f_id], cur < 0 )
 			
 		while file_content[0] != "\n":
 				
@@ -1144,16 +1199,16 @@ func load_fe() -> bool:
 				
 				if not cur.is_valid_float():
 					error_fe()
-					push_error("Invalid volume constraint %s for body %s" % [cur, body_id])
+					push_error("Invalid volume constraint %s for body %s" % [cur, body_oid])
 					return false
 					
-				bodies[-1].add_vol_constraint(cur.to_float())
-				vol_constraint_bids.append( bodies[-1].get_id() )
+				bodies[b_id].add_vol_constraint(cur.to_float())
 			
 			else: consume(1)
 		# Consume rest of line
 		consume_line()
 	
+	n_last_body = bodies.size()
 	# Commands section
 	
 	return true
@@ -1178,3 +1233,11 @@ func erase_fe_comments() -> void:
 
 func error_fe() -> void:
 	push_error("Cannot open .fe file")
+
+# FILE WRITE
+
+func set_file_write(_file_write : FileWrite) -> void:
+	file_write_strat = _file_write
+
+func write_to_file(file : String) -> void:
+	file_write_strat.write_to_file(file, self)

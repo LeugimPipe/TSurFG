@@ -12,22 +12,36 @@ var facets : Array = []
 ## -0.1 is the negative for 0
 var facet_ids : PackedFloat32Array = []
 
-var volume : float = -1.0
+var volume : float = -1.0 : set = set_volume
+
+signal volume_changed
+
+func set_volume(_volume : float) -> void:
+	volume = _volume
+	volume_changed.emit()
+
+var volume_constrained : bool = false : set = set_constrained
+
+signal constrain_changed
+
+func set_constrained(constr : bool) -> void:
+	volume_constrained = constr
+	constrain_changed.emit(id, volume_constrained)
 
 var volume_constraint : float = -1.0
 
 var GRAD_VOLUME_BODY_KEY : String
 
-func init(_id = -1, _oid = -1) -> void:
+signal body_removed
+
+func init(_id : int, _oid : int = -1) -> void:
 	if _id != -1: id = _id
+	else: push_error("A body cannot have -1 as id")
 	if _oid != -1: oid = _oid
 	GRAD_VOLUME_BODY_KEY = "grad_volume_body_" + str(id) + "_key"
 
 func get_id() -> int:
 	return id
-
-func set_volume(v : float) -> void:
-	volume = v
 
 func get_volume() -> float:
 	return volume
@@ -44,6 +58,13 @@ func add_facet(_facet, op : bool = false) -> void:
 
 func add_vol_constraint(_vol : float) -> void:
 	volume_constraint = _vol
+	volume_constrained = true
 
 func has_facet( facet ) -> bool:
 	return facets.has(facet)
+
+func remove() -> void:
+	for f in facets:
+		f.disconnect_body(self)
+	body_removed.emit(id)
+	queue_free()

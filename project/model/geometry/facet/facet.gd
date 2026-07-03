@@ -222,3 +222,7 @@ func is_body_inverse_id(b_id : int) -> bool:
 
 func is_body_inverse(body) -> bool:
 	return is_body_inverse_id(body.get_id())
+
+func disconnect_body(body) -> void:
+	if body.get_id() == body_id: body_id = -1
+	if body.get_id() == bodyinverse_id: bodyinverse_id = -1

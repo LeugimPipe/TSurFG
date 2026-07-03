@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://b7nofu3c4b6c5"]
+
+[ext_resource type="Script" uid="uid://x4lj8ig2snou" path="res://controller/gui/volumes_display/volumes_display.gd" id="1_4a4b7"]
+
+[node name="VolumesDisplay" type="ScrollContainer" unique_id=1648971793]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -625.0
+offset_top = -100.0
+offset_right = 625.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+script = ExtResource("1_4a4b7")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1460540425]
+layout_mode = 2
+size_flags_horizontal = 6
+size_flags_vertical = 6
+
+[node name="AddBodyButton" type="Button" parent="VBoxContainer" unique_id=1382922858]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+text = "Add body with whole geometry."
+
+[node name="Label" type="Label" parent="VBoxContainer" unique_id=1943992606]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+text = "No bodies."
+
+[connection signal="pressed" from="VBoxContainer/AddBodyButton" to="." method="_on_add_body_button_pressed"]

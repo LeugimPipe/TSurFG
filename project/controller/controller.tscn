@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://degmn3bui161b"]
+
+[ext_resource type="Script" uid="uid://cd04045x1vdav" path="res://controller/controller.gd" id="1_2kald"]
+[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/geometry/geometry.tscn" id="2_b0n65"]
+
+[node name="Controller" type="Node" unique_id=975899470]
+script = ExtResource("1_2kald")
+geom_scene = ExtResource("2_b0n65")
+
+[node name="GUI" type="CanvasLayer" parent="." unique_id=601676699]
+
+[node name="HBoxContainer" type="HBoxContainer" parent="GUI" unique_id=304769256]
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="ReloadButton" type="Button" parent="GUI/HBoxContainer" unique_id=417009090]
+layout_mode = 2
+text = "Load new file"
+
+[node name="SaveButton" type="Button" parent="GUI/HBoxContainer" unique_id=1210611308]
+layout_mode = 2
+text = "Save figure"
+
+[node name="EvolutionControls" type="HBoxContainer" parent="GUI" unique_id=225721353]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -509.0
+offset_top = -40.0
+offset_right = 509.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="IterateButton" type="Button" parent="GUI/EvolutionControls" unique_id=562161601]
+layout_mode = 2
+text = "Iterate"
+
+[node name="IterateButtonN" type="Button" parent="GUI/EvolutionControls" unique_id=727556754]
+layout_mode = 2
+text = "Iterate n times"
+
+[node name="NIterationIntro" type="LineEdit" parent="GUI/EvolutionControls" unique_id=1068495011]
+layout_mode = 2
+text = "1"
+placeholder_text = "steps"
+
+[node name="ChangeTimeStepMode" type="Button" parent="GUI/EvolutionControls" unique_id=1274401432]
+layout_mode = 2
+text = "Change to constant time step"
+
+[node name="ChangeTimeStep" type="Button" parent="GUI/EvolutionControls" unique_id=1276867790]
+layout_mode = 2
+disabled = true
+text = "Change time step to"
+
+[node name="TimeStepIntro" type="LineEdit" parent="GUI/EvolutionControls" unique_id=1855492293]
+layout_mode = 2
+text = "0.1"
+placeholder_text = "time step"
+editable = false
+
+[node name="RefineButton" type="Button" parent="GUI/EvolutionControls" unique_id=962842573]
+layout_mode = 2
+text = "Refine geometry"
+
+[node name="VolumesButton" type="Button" parent="GUI/EvolutionControls" unique_id=898372975]
+layout_mode = 2
+text = "Display volumes"
+
+[node name="FileSelect" type="VBoxContainer" parent="GUI" unique_id=1012726088]
+visible = false
+custom_minimum_size = Vector2(250, 0)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -125.0
+offset_top = -29.0
+offset_right = 125.0
+offset_bottom = 29.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Label" type="Label" parent="GUI/FileSelect" unique_id=725792112]
+layout_mode = 2
+text = "Select a file:"
+
+[node name="LineEdit" type="LineEdit" parent="GUI/FileSelect" unique_id=1220762969]
+layout_mode = 2
+placeholder_text = "File..."
+
+[connection signal="pressed" from="GUI/HBoxContainer/ReloadButton" to="." method="_on_reload_button_pressed"]
+[connection signal="pressed" from="GUI/HBoxContainer/SaveButton" to="." method="_on_save_button_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/IterateButton" to="." method="_on_iterate_button_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/IterateButtonN" to="." method="_on_iterate_button_n_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/ChangeTimeStepMode" to="." method="_on_change_time_step_mode_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/ChangeTimeStep" to="." method="_on_change_time_step_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/RefineButton" to="." method="_on_refine_button_pressed"]
+[connection signal="pressed" from="GUI/EvolutionControls/VolumesButton" to="." method="_on_volumes_button_pressed"]
+[connection signal="text_submitted" from="GUI/FileSelect/LineEdit" to="." method="_on_line_edit_text_submitted"]

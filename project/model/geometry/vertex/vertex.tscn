@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://bmlvlped7esah"]
+
+[ext_resource type="Script" uid="uid://2ew4xyea18ey" path="res://model/geometry/vertex/vertex.gd" id="1_24xqe"]
+[ext_resource type="PackedScene" uid="uid://cw45abbvc354e" path="res://model/geometry/force/force.tscn" id="2_axody"]
+
+[node name="Vertex" type="Node" unique_id=897174071]
+script = ExtResource("1_24xqe")
+force_scene = ExtResource("2_axody")
+
+[connection signal="coords_changed" from="." to="." method="_on_coords_changed"]

@@ -113,4 +113,4 @@ bodies  /* one body, defined by its oriented faces */
 // Cube 3
 3   12 13 14 /*15*/-2 16 17 volume 8
 // Cube 4
-4   -12 18 19 /*20*/-8 21 22   volume 8
+4   -12 18 19 /*20*/-8 21 22 // volume 8

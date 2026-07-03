@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://vg4klibov5r0"]
 
-[ext_resource type="Script" uid="uid://cqs2fxfsq0diq" path="res://model/facet/facet.gd" id="1_56e16"]
+[ext_resource type="Script" uid="uid://cqs2fxfsq0diq" path="res://model/geometry/facet/facet.gd" id="1_56e16"]
 
 [node name="Facet" type="Node" unique_id=1869040531]
 script = ExtResource("1_56e16")

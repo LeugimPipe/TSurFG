@@ -3,7 +3,7 @@ extends Node
 # TODO
 # Las coordenadas deberian ser un tipo especial de Array a semejanza de Vector2 y Vector3
 # Una cosa como VectorN
-@export var coords : Array = []: set = set_coords
+@export var coords : Array = [] : set = set_coords
 
 signal coords_changed
 

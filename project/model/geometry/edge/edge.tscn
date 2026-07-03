@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d4nfjtwcec7bm"]
 
-[ext_resource type="Script" uid="uid://cdm1wmhuda2p4" path="res://model/edge/edge.gd" id="1_epd2p"]
+[ext_resource type="Script" uid="uid://cdm1wmhuda2p4" path="res://model/geometry/edge/edge.gd" id="1_epd2p"]
 
 [node name="Edge" type="Node" unique_id=302489017]
 script = ExtResource("1_epd2p")

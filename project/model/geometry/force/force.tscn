@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cw45abbvc354e"]
 
-[ext_resource type="Script" uid="uid://b5uuta53wvcvv" path="res://model/force/force.gd" id="1_2di25"]
+[ext_resource type="Script" uid="uid://b5uuta53wvcvv" path="res://model/geometry/force/force.gd" id="1_2di25"]
 
 [node name="Force" type="Node" unique_id=1397731032]
 script = ExtResource("1_2di25")

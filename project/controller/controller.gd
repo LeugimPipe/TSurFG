@@ -20,6 +20,10 @@ var geom
 
 var view
 
+var volumes_display
+
+var file_select
+
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	file_loaded_mutex = Mutex.new()
@@ -82,9 +86,9 @@ func put_down_user_file_load(terminal : bool = false) -> void:
 func change_to_optimizing(terminal : bool = false) -> void:
 	globals.optimizing_time_step = true
 	globals.printer("Changing from constant to optimizing time step")
-	$GUI/HBoxContainer/ChangeTimeStep.disabled = true
-	$GUI/HBoxContainer/TimeStepIntro.editable = false
-	$GUI/HBoxContainer/ChangeTimeStepMode.text = "Change to constant time step"
+	$GUI/EvolutionControls/ChangeTimeStep.disabled = true
+	$GUI/EvolutionControls/TimeStepIntro.editable = false
+	$GUI/EvolutionControls/ChangeTimeStepMode.text = "Change to constant time step"
 	if terminal: globals.semaphore.post()
 
 func change_to_constant(new_time_step : float, terminal : bool = false) -> void:
@@ -93,9 +97,9 @@ func change_to_constant(new_time_step : float, terminal : bool = false) -> void:
 	globals.time_step = new_time_step
 	
 	globals.printer("Changing from optimizing to constant time step %s" % globals.time_step)
-	$GUI/HBoxContainer/ChangeTimeStep.disabled = false
-	$GUI/HBoxContainer/TimeStepIntro.editable = true
-	$GUI/HBoxContainer/ChangeTimeStepMode.text = "Change to optimizing time step"
+	$GUI/EvolutionControls/ChangeTimeStep.disabled = false
+	$GUI/EvolutionControls/TimeStepIntro.editable = true
+	$GUI/EvolutionControls/ChangeTimeStepMode.text = "Change to optimizing time step"
 	if terminal: globals.semaphore.post()
 
 func change_time_step(new_time_step : float, terminal : bool = false) -> void:
@@ -133,7 +137,7 @@ func _on_iterate_button_n_pressed() -> void:
 	if not file_loaded: return
 	printraw("\n")
 	
-	var n = $GUI/HBoxContainer/NIterationIntro.text.strip_edges()
+	var n = $GUI/EvolutionControls/NIterationIntro.text.strip_edges()
 	if not n.is_valid_int():
 		push_error("Invalid number of iterations")
 	else:
@@ -155,7 +159,7 @@ func _on_change_time_step_pressed() -> void:
 	if not file_loaded: return
 	printraw("\n")
 	
-	var new_time_step = $GUI/HBoxContainer/TimeStepIntro.text.strip_edges()
+	var new_time_step = $GUI/EvolutionControls/TimeStepIntro.text.strip_edges()
 	if not new_time_step.is_valid_float():
 		push_error("Invalid time step %s" % new_time_step )
 	else:
@@ -170,7 +174,7 @@ func _on_change_time_step_mode_pressed() -> void:
 	if not globals.optimizing_time_step:
 		change_to_optimizing()
 	else:
-		var new_time_step = $GUI/HBoxContainer/TimeStepIntro.text.strip_edges()
+		var new_time_step = $GUI/EvolutionControls/TimeStepIntro.text.strip_edges()
 	
 		if new_time_step.is_valid_float():
 			new_time_step = new_time_step.to_float()
@@ -187,7 +191,60 @@ func _on_refine_button_pressed() -> void:
 	geom.refine()
 	globals.print_prompt()
 
+func _on_volumes_button_pressed() -> void:
+	if not file_loaded: return
+	
+	if volumes_display == null:
+		volumes_display = load("res://controller/gui/volumes_display/volumes_display.tscn").instantiate()
+		geom.bodies_changed.connect(volumes_display._on_bodies_changed)
+		volumes_display.add_body_whole.connect(geom._on_add_body_whole)
+		volumes_display.init( geom.bodies )
+		$GUI.add_child(volumes_display)
+		$GUI/EvolutionControls/VolumesButton.text = "Hide volumes"
+		
+	else:
+		hide_volumes_display()
+
+func hide_volumes_display() -> void:
+	volumes_display.queue_free()
+	$GUI/EvolutionControls/VolumesButton.text = "Display volumes"
+
+func _on_reload_button_pressed() -> void:
+	if not file_loaded: return
+	if volumes_display != null: hide_volumes_display()
+	set_file_loaded(false)
+	set_up_user_file_load()
+
+func _on_save_button_pressed() -> void:
+	if not file_loaded: return
+	if volumes_display != null: hide_volumes_display()
+	display_file_select()
+
+func display_file_select() -> void:
+	if file_select == null:
+		file_select = load("res://controller/gui/file_select/file_select.tscn").instantiate()
+		file_select.cancel.connect(self._on_file_select_cancel)
+		file_select.file_selected.connect(self._on_file_select_file_selected)
+		$GUI.add_child(file_select)
+
+func _on_file_select_cancel() -> void:
+	file_select.queue_free()
+
+func _on_file_select_file_selected(file : String) -> void:
+	file_select.queue_free()
+	
+	## Strategy for file writing
+	var file_write
+	
+	# Process file type
+	# Only one strategy for one, no need to process
+	file_write = FileWriteFe.new()
+	
+	geom.set_file_write(file_write)
+	geom.write_to_file(file)
+
 # TERMINAL INPUT
+
 func terminal_input() -> void:
 	var n_enters : int = 0
 	var input : String = "STRING"
@@ -222,16 +279,23 @@ func terminal_input() -> void:
 			
 				if input.length() == 1:
 					match input:
+						# Iterate
 						"g":
 							geom.call_deferred("iterate_n", 1, true)
 							# Wait for action to complete
 							globals.semaphore.wait()
 						
+						# Refine
 						"r":
 							geom.call_deferred("refine", true)
 							# Wait for action to complete
 							globals.semaphore.wait()
 						
+						# Display volume information
+						#"v":
+						#	geom.call_deferred("", true)
+						
+						# Change time step/time step mode
 						"m":
 							if not globals.optimizing_time_step:
 								call_deferred("change_to_optimizing", true)
@@ -268,6 +332,7 @@ func terminal_input() -> void:
 					match input[1]:
 						" ":
 							match input[0]:
+								# Iterate n
 								"g":
 									input = input.right(-2).strip_edges()
 									if !input.is_valid_int():
@@ -278,6 +343,7 @@ func terminal_input() -> void:
 										# Wait for action to complete
 										globals.semaphore.wait()
 								
+								# Change time step
 								"m":
 									input = input.right(-2).strip_edges()
 									if not input.is_valid_float():
