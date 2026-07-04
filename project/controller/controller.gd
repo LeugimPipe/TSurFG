@@ -13,7 +13,8 @@ func set_file_loaded(value: bool) -> void:
 	file_loaded = value
 	file_loaded_mutex.unlock()
 
-var content = ""
+## File content.
+var file_content = ""
 
 @export var geom_scene : PackedScene
 var geom
@@ -22,6 +23,7 @@ var view
 
 var volumes_display
 
+## File selection GUI.
 var file_select
 
 # Called when the node enters the scene tree for the first time.
@@ -52,28 +54,31 @@ func _ready() -> void:
 
 # There must be something in filename
 func load_file(terminal : bool = false) :
+	if view != null: view.queue_free()
 	if !terminal: printraw("\n")
-	print("Reading file ", filename)
+	globals.printer("Reading file " + filename)
 	
 	var file = FileAccess.open(filename, FileAccess.READ)
 	if FileAccess.get_open_error() != OK:
 		push_error("Couldn't open file ", filename)
 		set_file_loaded( false )
 	else:
-		content = file.get_as_text()
-	
-		set_file_loaded( geom.load_file(content) )
-	
+		file_content = file.get_as_text()
+		
+		geom.set_file_read( set_file_read_strat() )
+		set_file_loaded( geom.load_file(file_content) )
+		
 		if file_loaded:
-	
+		
 			if globals.AMBIENT_DIMENSION == 2:
 				view = load("res://view/2d/main2d/main2d.tscn").instantiate()
 				add_child(view)
-	
+		
 			if globals.AMBIENT_DIMENSION == 3:
 				view = load("res://view/3d/main3d/main3d.tscn").instantiate()
 				add_child(view)
 	
+	# Allow terminal thread to continue execution
 	if terminal: globals.semaphore.post()
 
 func set_up_user_file_load() -> void:
@@ -82,6 +87,24 @@ func set_up_user_file_load() -> void:
 func put_down_user_file_load(terminal : bool = false) -> void:
 	$GUI/FileSelect.visible = false
 	if not terminal: globals.print_prompt()
+
+## Selects a file reading strategy to pass.
+## Selection done according to file_content.
+func set_file_read_strat() -> FileRead:
+	# Eliminate initial white space
+	while file_content[0] == " " or file_content == "\n" or file_content == "\t":
+		file_content = file_content.right(-1)
+	
+	if file_content.left( "ply".length() ) == "ply":
+		# File reading strategy for ply files
+		return FileReadPly.new()
+	
+	else:
+		# Will attempt to parse file
+		# as a surface evolver (.fe) file
+		# These don't start with a magic word
+		# File reading strategy for fe files
+		return FileReadFe.new()
 
 func change_to_optimizing(terminal : bool = false) -> void:
 	globals.optimizing_time_step = true
@@ -362,7 +385,7 @@ func terminal_input() -> void:
 						_: pass
 
 ## Called when the terminal input thread starts a subprompt.
-## Disables all other input
+## Disables all other input.
 func start_sub_prompt() -> void:
 	get_tree().paused = true
 	globals.semaphore.post()

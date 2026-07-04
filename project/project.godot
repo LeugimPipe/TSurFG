@@ -29,7 +29,7 @@ project/assembly_name="godot cpp template"
 
 [editor]
 
-run/main_run_args="-- ../../output/a.fe"
+run/main_run_args="-- ../data/plycube.ply"
 
 [input]
 
