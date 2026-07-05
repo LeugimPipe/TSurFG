@@ -21,7 +21,7 @@ func _ready() -> void:
 func init() -> void:
 	# Set up energies in geometry according to characteristics
 	# Only one energy for now
-	geom.add_energy(Area.new(geom))
+	geom.add_energy( Area.new(geom) )
 	
 	geom.init()
 

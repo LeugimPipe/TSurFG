@@ -9,7 +9,7 @@ var head
 var tail_id
 var head_id
 
-# Stores which facets are connected to this edge
+## Stores which facets are connected to this edge
 var con_facets : PackedInt32Array = []
 
 var view

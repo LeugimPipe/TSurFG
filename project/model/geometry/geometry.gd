@@ -171,7 +171,7 @@ func add_facet(_edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : b
 ## Adds given energy to energy computation
 func add_energy(en : QuantityInterface, _id : int = -1) -> void:
 	var id : int = _id
-	if id == -1 : id = energies.size()-1
+	if id == -1 : id = energies.size()
 	en.id = id
 	energies[id] = en
 
@@ -204,7 +204,7 @@ func set_forces_zero() -> void:
 func calc_forces() -> void:
 	for e_id in energies:
 		var e = energies[e_id]
-		e.calc_forces()
+		e.calc_neg_gradients()
 	
 	# Project forces
 	if has_constraints():
@@ -228,7 +228,7 @@ func calc_constraints_gradient() -> void:
 	for q_id in quantities:
 		var q = quantities[q_id]
 		if q.constrained:
-			q.calc_forces()
+			q.calc_gradients()
 
 func _on_quantity_constraints_changed(q_id : int, constr : bool) -> void:
 	if constr:
@@ -487,22 +487,18 @@ func refine(terminal : bool = false) -> void:
 		
 		# Reinit the facet to be the central facet now
 		f.init( f.get_id(), edges[-3], edges[-2], edges[-1])
-		
-		if f.body_id != -1:
-			var b = quantities[f.body_id]
-			b.add_facet(new_facets[-3])
-			b.add_facet(new_facets[-2])
-			b.add_facet(new_facets[-1])
-		
-		if f.bodyinverse_id != -1:
-			var b = quantities[f.bodyinverse_id]
-			b.add_facet(new_facets[-3], true)
-			b.add_facet(new_facets[-2], true)
-			b.add_facet(new_facets[-1], true)
 	
 	# Add new facets to facet array
 	for f in new_facets:
 		facets.append(f)
+	
+	for e_id in energies:
+		var e = energies[e_id]
+		e.refine(old_n_vertices, old_n_edges, old_n_facets)
+	
+	for q_id in quantities:
+		var q = quantities[q_id]
+		q.refine(old_n_vertices, old_n_edges, old_n_facets)
 	
 	# Allow terminal thread to continue
 	if terminal: globals.semaphore.post()

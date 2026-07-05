@@ -25,13 +25,10 @@ var v0_id
 var v1_id
 var v2_id
 
-## Stores the id of the body to which it is connected.
-## The facet is part of the body with its correct orientation.
-var body_id : int = -1
-
-## Stores the id of the body to which it is connected.
-## The facet is part of the body with its inverse orientation.
-var bodyinverse_id : int = -1
+## Stores the id of quantities to which it is connected.
+## Negative ids mean the facet should be considered in the opposite orientation.
+## -0.1 is the negative for 0.
+var con_quants : PackedFloat32Array = []
 
 func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false,  _oid : int = -1) -> void:
 	if view != null: view.queue_free()
@@ -181,48 +178,37 @@ func center() -> Array:
 func get_id() -> int:
 	return id
 
-func connect_body(body, inverse : bool = false) -> void:
-	var b_id : int = body.get_id()
-	if body_id == b_id or bodyinverse_id == b_id:
-		push_error("Facet ", get_id(), " is already connected to body ", b_id)
-		return
-	
-	if b_id == body_id:
-		push_error("Facet ", get_id(), " is already connected to body ", b_id)
-		return
-	
-	if b_id == bodyinverse_id:
-		push_error("Facet ", get_id(), " is already connected to body ", b_id, " with inverse orientation")
-		return
-
+func connect_quantity(quantity : QuantityInterface, inverse : bool = false) -> void:
+	var q_id = quantity.get_id()
 	if inverse:
-		if bodyinverse_id != -1:
-			push_error("Cannot connect facet ", get_id(), " to body ", b_id, " with inverse orientation: it is already connected to body ", bodyinverse_id, " with inverse orientation.")
-			return
-		
-		bodyinverse_id = b_id
+		q_id = -q_id
+		if q_id == 0: q_id = -0.1
+	if con_quants.has(q_id):
+		push_error("Facet ", id, " is already connected to quantity ", q_id)
+		return
 	
-	else:
-		if body_id != -1:
-			push_error("Cannot connect facet ", get_id(), " to body ", b_id, ": it is already connected to body ", body_id, ".")
-			return
-		
-		body_id = b_id
+	con_quants.append(q_id)
 
-func is_body_connected_id(b_id : int) -> bool:
-	if b_id == body_id: return true
-	if b_id == bodyinverse_id: return true
+func is_quantity_connected_id(q_id : int) -> bool:
+	if con_quants.has(q_id) : return true
+	if con_quants.has(-q_id) : return true
+	if q_id == 0:
+		if con_quants.has(0) : return true
+		if con_quants.has(-0.1): return true
 	return false
 
-func is_body_connected(body) -> bool:
-	return is_body_connected_id(body.get_id())
+func is_quantity_connected(quantity : QuantityInterface) -> bool:
+	return is_quantity_connected_id(quantity.get_id())
 
-func is_body_inverse_id(b_id : int) -> bool:
-	return b_id == bodyinverse_id
+func is_quantity_inverse_id(q_id : int) -> bool:
+	if q_id == 0: return con_quants.has(-0.1)
+	return con_quants.has(-q_id)
 
-func is_body_inverse(body) -> bool:
-	return is_body_inverse_id(body.get_id())
+func is_quantity_inverse(quantity : QuantityInterface) -> bool:
+	return is_quantity_inverse_id(quantity.get_id())
 
-func disconnect_body(body) -> void:
-	if body.get_id() == body_id: body_id = -1
-	if body.get_id() == bodyinverse_id: bodyinverse_id = -1
+func disconnect_quantity(quantity : QuantityInterface) -> void:
+	var q_id = quantity.id
+	con_quants.erase(q_id)
+	con_quants.erase(-q_id)
+	if q_id == 0: con_quants.erase(-0.1)
