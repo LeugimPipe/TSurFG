@@ -67,7 +67,7 @@ text = "Refine geometry"
 
 [node name="VolumesButton" type="Button" parent="GUI/EvolutionControls" unique_id=898372975]
 layout_mode = 2
-text = "Display volumes"
+text = "Display quantities"
 
 [node name="FileSelect" type="VBoxContainer" parent="GUI" unique_id=1012726088]
 visible = false

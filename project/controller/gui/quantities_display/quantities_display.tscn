@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://b7nofu3c4b6c5"]
 
-[ext_resource type="Script" uid="uid://x4lj8ig2snou" path="res://controller/gui/volumes_display/volumes_display.gd" id="1_4a4b7"]
+[ext_resource type="Script" uid="uid://x4lj8ig2snou" path="res://controller/gui/quantities_display/quantities_display.gd" id="1_4a4b7"]
 
-[node name="VolumesDisplay" type="ScrollContainer" unique_id=1648971793]
+[node name="QuantitiesDisplay" type="ScrollContainer" unique_id=1648971793]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -27,12 +27,12 @@ size_flags_vertical = 6
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "Add body with whole geometry."
+text = "Add body with whole geometry"
 
 [node name="Label" type="Label" parent="VBoxContainer" unique_id=1943992606]
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 8
-text = "No bodies."
+text = "No quantities."
 
-[connection signal="pressed" from="VBoxContainer/AddBodyButton" to="." method="_on_add_body_button_pressed"]
+[connection signal="pressed" from="VBoxContainer/AddBodyButton" to="." method="_on_add_quantity_button_pressed"]

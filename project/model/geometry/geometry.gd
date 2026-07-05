@@ -18,6 +18,9 @@ var quantities : Dictionary[int, QuantityInterface]
 var constr_quantities_ids : PackedInt32Array
 var n_hist_quantity : int = 0
 
+signal chars_calced
+signal quantities_changed
+
 signal cam_info_calculated
 signal cam_center_calculated
 
@@ -54,9 +57,12 @@ func init() -> void:
 	calc_characteristics()
 	
 	var main = get_node("../..")
+	#print(main.get_children())
 	await main.child_entered_tree
+	#print(main.get_children())
 	var main3d = get_node("../../Main3D")
 	await main3d.ready
+	#print(main.get_children())
 	cam_info_calculated.emit(center, radius)
 	
 	print_info()
@@ -82,6 +88,8 @@ func calc_characteristics() -> void:
 	calc_center()
 	calc_radius()
 	calc_forces()
+	
+	chars_calced.emit()
 
 func calc_center() -> void:
 	var ret : Array
@@ -175,6 +183,17 @@ func add_quantity(q : QuantityInterface, _id : int = -1) -> void:
 	quantities[id] = q
 	if q.constrained: constr_quantities_ids.append(id)
 	n_hist_quantity += 1
+	q.removed.connect( _on_quantity_removed )
+	q.constraint_changed.connect( _on_quantity_constraints_changed )
+
+func _on_add_body_whole() -> void:
+	var nv = VolumeBody.new(self)
+	add_quantity(nv)
+	for f in facets:
+		nv.add_facet(f)
+	
+	quantities_changed.emit(quantities)
+	calc_characteristics()
 
 # FORCE CALC
 
@@ -211,19 +230,19 @@ func calc_constraints_gradient() -> void:
 		if q.constrained:
 			q.calc_forces()
 
-func _on_volume_constraints_changed(b_id : int, constr : bool) -> void:
-	#if constr:
-	#	if not vol_constraint_bids.has(b_id):
-	#		vol_constraint_bids.append(b_id)
-	#else:
-	#	vol_constraint_bids.erase(b_id)
+func _on_quantity_constraints_changed(q_id : int, constr : bool) -> void:
+	if constr:
+		if not constr_quantities_ids.has(q_id):
+			constr_quantities_ids.append(q_id)
+	else:
+		constr_quantities_ids.erase(q_id)
 	
 	calc_characteristics()
 
-func _on_body_removed(b_id : int) -> void:
-	#bodies.erase(b_id)
-	#vol_constraint_bids.erase(b_id)
-	#bodies_changed.emit(bodies)
+func _on_quantity_removed(q_id : int) -> void:
+	quantities.erase(q_id)
+	constr_quantities_ids.erase(q_id)
+	quantities_changed.emit(quantities)
 	
 	calc_characteristics()
 
@@ -264,7 +283,6 @@ func calc_magnitude_constraint_matrix() -> void:
 			
 			K.set_ij(i, j, dot_product)
 			K.set_ij(j, i, dot_product)
-	print(K.content)
 
 func calc_magnitude_constraint_force_product_vector() -> void:
 	F = VectorN.new()
@@ -309,8 +327,6 @@ func restore_coords() -> void:
 		v.restore_coords()
 
 func alter_coordinates() -> void:
-	# Force 1
-	# Gradient of area
 	for e_id in energies:
 		var e = energies[e_id]
 		for v in vertices:
@@ -320,10 +336,10 @@ func alter_coordinates() -> void:
 		for v in vertices:
 			v.apply_forces(FORCE_PROJ_KEY)
 			
-		#calc_magnitude_restoration_vectors()
+		calc_magnitude_restoration_vectors()
 		
-		#for v in vertices:
-		#	v.apply_vector(REST_VECT_KEY)
+		for v in vertices:
+			v.apply_vector(REST_VECT_KEY)
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate( i: int = -1 ) -> void:
@@ -474,17 +490,15 @@ func refine(terminal : bool = false) -> void:
 		
 		if f.body_id != -1:
 			var b = quantities[f.body_id]
-			var inverse : bool = f.is_body_inverse(b)
-			b.add_facet(new_facets[-3], inverse)
-			b.add_facet(new_facets[-2], inverse)
-			b.add_facet(new_facets[-1], inverse)
+			b.add_facet(new_facets[-3])
+			b.add_facet(new_facets[-2])
+			b.add_facet(new_facets[-1])
 		
 		if f.bodyinverse_id != -1:
-			var b = quantities[f.body_id]
-			var inverse : bool = f.is_body_inverse(b)
-			b.add_facet(new_facets[-3], inverse)
-			b.add_facet(new_facets[-2], inverse)
-			b.add_facet(new_facets[-1], inverse)
+			var b = quantities[f.bodyinverse_id]
+			b.add_facet(new_facets[-3], true)
+			b.add_facet(new_facets[-2], true)
+			b.add_facet(new_facets[-1], true)
 	
 	# Add new facets to facet array
 	for f in new_facets:

@@ -6,6 +6,7 @@ class_name Area
 func _init(_geom : Geometry) -> void:
 	super(_geom)
 	GRAD_KEY = "grad_area_key"
+	description = "Area of figure"
 
 func calc_grad_vertex(_v : Vertex) -> void:
 	super(_v)

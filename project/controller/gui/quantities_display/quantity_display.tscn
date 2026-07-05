@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://s5wu2jqcj40l"]
+
+[ext_resource type="Script" uid="uid://t3txpwti8pn7" path="res://controller/gui/quantities_display/quantity_display.gd" id="1_5vjl3"]
+
+[node name="QuantityDisplay" type="HBoxContainer" unique_id=985528337]
+offset_right = 767.0
+offset_bottom = 40.0
+script = ExtResource("1_5vjl3")
+
+[node name="QuantityLabel" type="Label" parent="." unique_id=1656806616]
+layout_mode = 2
+text = "Quantity n"
+
+[node name="DescriptionLabel" type="Label" parent="." unique_id=1168305368]
+layout_mode = 2
+text = "Description"
+
+[node name="CurValLabel" type="Label" parent="." unique_id=2111695690]
+layout_mode = 2
+text = "Current value:"
+
+[node name="TargetLabel" type="Label" parent="." unique_id=1815316742]
+layout_mode = 2
+text = "Target:"
+
+[node name="ToggleTargetButton" type="Button" parent="." unique_id=1761629756]
+layout_mode = 2
+text = "Remove target"
+
+[node name="ChangeTargetButton" type="Button" parent="." unique_id=2080026653]
+layout_mode = 2
+text = "Change target to"
+
+[node name="TargetInput" type="LineEdit" parent="." unique_id=1860684146]
+layout_mode = 2
+text = "0.0"
+placeholder_text = "0.0"
+
+[node name="RemoveButton" type="Button" parent="." unique_id=1535882533]
+layout_mode = 2
+text = "Remove quantity"
+
+[connection signal="pressed" from="ToggleTargetButton" to="." method="_on_toggle_target_button_pressed"]
+[connection signal="pressed" from="ChangeTargetButton" to="." method="_on_change_target_button_pressed"]
+[connection signal="pressed" from="RemoveButton" to="." method="_on_remove_button_pressed"]

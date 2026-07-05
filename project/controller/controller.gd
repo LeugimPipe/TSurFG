@@ -21,7 +21,7 @@ var figure : Figure
 
 var view
 
-var volumes_display
+var quantities_display
 
 ## File selection GUI.
 var file_select
@@ -54,7 +54,9 @@ func _ready() -> void:
 
 # There must be something in filename
 func load_file(terminal : bool = false) :
-	if view != null: view.queue_free()
+	if view != null:
+		view.queue_free()
+		await view.tree_exited
 	if !terminal: printraw("\n")
 	globals.printer("Reading file " + filename)
 	
@@ -173,7 +175,7 @@ func _on_line_edit_text_submitted(new_text: String) -> void:
 	new_text = new_text.strip_edges()
 	if new_text != "":
 		filename = new_text
-		load_file()
+		await load_file()
 		
 		if file_loaded: put_down_user_file_load()
 		else: globals.print_file_select_prompt()
@@ -217,30 +219,30 @@ func _on_refine_button_pressed() -> void:
 func _on_volumes_button_pressed() -> void:
 	if not file_loaded: return
 	
-	if volumes_display == null:
-		volumes_display = load("res://controller/gui/volumes_display/volumes_display.tscn").instantiate()
-		figure.geom.bodies_changed.connect(volumes_display._on_bodies_changed)
-		volumes_display.add_body_whole.connect( figure.geom._on_add_body_whole )
-		volumes_display.init( figure.geom.bodies )
-		$GUI.add_child(volumes_display)
-		$GUI/EvolutionControls/VolumesButton.text = "Hide volumes"
+	if quantities_display == null:
+		quantities_display = load("res://controller/gui/quantities_display/quantities_display.tscn").instantiate()
+		figure.geom.quantities_changed.connect(quantities_display._on_quantities_changed)
+		quantities_display.add_body_whole.connect( figure.geom._on_add_body_whole )
+		quantities_display.init( figure.geom.quantities )
+		$GUI.add_child(quantities_display)
+		$GUI/EvolutionControls/VolumesButton.text = "Hide quantities"
 		
 	else:
-		hide_volumes_display()
+		hide_quantities_display()
 
-func hide_volumes_display() -> void:
-	volumes_display.queue_free()
-	$GUI/EvolutionControls/VolumesButton.text = "Display volumes"
+func hide_quantities_display() -> void:
+	quantities_display.queue_free()
+	$GUI/EvolutionControls/VolumesButton.text = "Display quantities"
 
 func _on_reload_button_pressed() -> void:
 	if not file_loaded: return
-	if volumes_display != null: hide_volumes_display()
+	if quantities_display != null: hide_quantities_display()
 	set_file_loaded(false)
 	set_up_user_file_load()
 
 func _on_save_button_pressed() -> void:
 	if not file_loaded: return
-	if volumes_display != null: hide_volumes_display()
+	if quantities_display != null: hide_quantities_display()
 	display_file_select()
 
 func display_file_select() -> void:

@@ -4,7 +4,11 @@ class_name QuantityInterface
 ## Quantity interface.
 ## Stores how to calculate both the quantity and the gradient (force) of the quantity.
 
-var id : int = -1
+var id : int = -1 : set = set_id
+func set_id(_id) -> void:
+	id = _id
+
+var description : String = "Quantity interface"
 
 ## Key for the quantity
 var GRAD_KEY : String = "gen_grad_key"
@@ -13,9 +17,18 @@ var GRAD_KEY : String = "gen_grad_key"
 var geom : Geometry
 
 ## True if magnitude is constrained, false otherwise
-var constrained : bool = false
+var constrained : bool = false : set = set_constrained
+
+func set_constrained(_c : bool) -> void:
+	constrained = _c
+	constraint_changed.emit(id, constrained)
+
+signal constraint_changed
+
 ## Magnitude constraint, if it exists
 var target : float = 0.0
+
+signal removed
 
 func _init(_geom) -> void:
 	geom = _geom
@@ -30,8 +43,6 @@ func calc_forces() -> void:
 func set_magnitude_constraint(constraint : float) -> void:
 	constrained = true
 	target = constraint
-	if not geom.constr_quantities_ids.has(id):
-		geom.constr_quantities_ids.append(id)
 
 func rm_magnitude_constraint() -> void:
 	constrained = false
@@ -41,3 +52,6 @@ func calc_grad_vertex(_v : Vertex) -> void:
 
 func calc_energy() -> float:
 	return 0.
+
+func remove() -> void:
+	removed.emit(id)
