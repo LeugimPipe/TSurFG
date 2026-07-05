@@ -4,20 +4,19 @@ class_name Geometry
 @export var vertex_scene : PackedScene
 @export var edge_scene : PackedScene
 @export var facet_scene : PackedScene
-@export var body_scene : PackedScene
 
 var vertices : Array
 var edges : Array
 var facets : Array
 
-var bodies : Dictionary
-## Total number of bodies used in the history of this geometry
-var n_hist_body : int = 0
-## Emitted when bodies dictionary is altered
-signal bodies_changed
-
-## Body ids of bodies with volume constraints
-var vol_constraint_bids : PackedInt32Array
+var area_energy : Area
+## Stores quantity computation strategies to be used for force computation.
+var energies : Dictionary[int, QuantityInterface]
+## Stores quantity computation strategies to be used for information reporting.
+## Some of them may be constrained.
+var quantities : Dictionary[int, QuantityInterface]
+var constr_quantities_ids : PackedInt32Array
+var n_hist_quantity : int = 0
 
 signal cam_info_calculated
 signal cam_center_calculated
@@ -27,7 +26,7 @@ var center : Array
 var radius : float
 
 # Force keys
-var GRAD_AREA_KEY : String = "grad_area_key"
+var FORCE_PROJ_KEY : String = "force_proj_key"
 var REST_VECT_KEY : String = "rest_vect_key"
 
 # FORCE PROJECTION UTILS
@@ -49,19 +48,14 @@ var DELTA : VectorN
 ## Vector to store factors to calculate the projection vectors
 var C : VectorN
 
-## Read file strategy.
-var file_read_strat : FileRead
-
-## Write file strategy.
-var file_write_strat : FileWrite
-
 # Functions after initialization
 func init() -> void:
+	area_energy = Area.new(self)
 	calc_characteristics()
 	
-	var main = get_node("..")
+	var main = get_node("../..")
 	await main.child_entered_tree
-	var main3d = get_node("../Main3D")
+	var main3d = get_node("../../Main3D")
 	await main3d.ready
 	cam_info_calculated.emit(center, radius)
 	
@@ -70,43 +64,24 @@ func init() -> void:
 func print_info(i : int = -1) -> void:
 	var s : String = ""
 	if i != -1: s += str(i+1) + ": "
-	s += ("Total area: %s\t" % get_total_area() +
+	s += ("Total area: %s\t" % area_energy.calc_energy() +
 		"Total energy: %s\t" % get_energy())
 	if i != -1: s += "Time step: %s\t" % globals.time_step
 	globals.printer(s)
 
-func get_total_area() -> float:
-	var ret = 0.
-	for f in facets:
-		ret += f.area()
-	return ret
-
 func get_energy() -> float:
 	var energy = 0.
 	
-	# Energy 1: area
-	energy += get_total_area()
+	for e_id in energies:
+		var e = energies[e_id]
+		energy += e.calc_energy()
 	
 	return energy
-
-func print_volume() -> void:
-	for b_id in bodies:
-		var b = bodies[b_id]
-		print("Volume of body ", b_id, ": ", b.get_volume())
-
-func get_volume() -> float:
-	var ret = 0.
-	for f in facets:
-		ret += f.volume_contribution()
-	return ret
 
 func calc_characteristics() -> void:
 	calc_center()
 	calc_radius()
-	calc_all_ev_vectors()
-	
-	for b_id in bodies:
-		calc_volume(bodies[b_id])
+	calc_forces()
 
 func calc_center() -> void:
 	var ret : Array
@@ -115,11 +90,11 @@ func calc_center() -> void:
 	
 	var max_v : Array
 	max_v.resize(globals.AMBIENT_DIMENSION)
-	max_v.fill(0.)
+	max_v.fill(-INF)
 	
 	var min_v : Array
 	min_v.resize(globals.AMBIENT_DIMENSION)
-	min_v.fill(0.)
+	min_v.fill(INF)
 	
 	for v in vertices:
 		for i in globals.AMBIENT_DIMENSION:
@@ -153,18 +128,6 @@ func calc_radius() -> void:
 	
 	radius = ret
 
-func calc_volume(body) -> void:
-	var vol = 0.
-	for i in body.facets.size():
-		var f = body.facets[i]
-		var vol_contr : float = f.volume_contribution()
-		# If the id is negative the volume contribution should be the opposite
-		# as the actual volume contribution is the one that would result from a
-		# facet with the opposite orientation.
-		if body.facet_ids[i] < 0 : vol_contr = -vol_contr
-		vol += vol_contr
-	body.set_volume(vol)
-
 func reset_cam() -> void:
 	cam_info_calculated.emit(center, radius)
 
@@ -197,24 +160,21 @@ func add_facet(_edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : b
 	facets[-1].init(id, _edge0, _edge1, _edge2, _inversee0, _inversee1, _inversee2, _oid)
 	add_child(facets[-1])
 
-## Adds body with given id
-func add_body(b_oid : int = -1, _id : int = -1) -> void:
-	var b_id : int = _id
-	if b_id == -1 : b_id = n_hist_body
-	
-	bodies[b_id] = body_scene.instantiate()
-	bodies[b_id].init(b_id, b_oid)
-	bodies[b_id].constrain_changed.connect(_on_volume_constraints_changed)
-	bodies[b_id].body_removed.connect(_on_body_removed)
-	add_child(bodies[b_id])
-	n_hist_body += 1
+## Adds given energy to energy computation
+func add_energy(en : QuantityInterface, _id : int = -1) -> void:
+	var id : int = _id
+	if id == -1 : id = energies.size()-1
+	en.id = id
+	energies[id] = en
 
-func _on_add_body_whole() -> void:
-	add_body()
-	for f in facets:
-		bodies[n_hist_body-1].add_facet(f)
-	calc_characteristics()
-	bodies_changed.emit(bodies)
+## Adds given quantity to magnitude constraints
+func add_quantity(q : QuantityInterface, _id : int = -1) -> void:
+	var id : int = _id
+	if id == -1 : id = n_hist_quantity
+	q.id = id
+	quantities[id] = q
+	if q.constrained: constr_quantities_ids.append(id)
+	n_hist_quantity += 1
 
 # FORCE CALC
 
@@ -222,61 +182,61 @@ func set_forces_zero() -> void:
 	for v in vertices:
 		v.set_forces_zero()
 
-func calc_all_ev_vectors() -> void:
-	calc_forces()
-
 func calc_forces() -> void:
-	# Force 1: Gradient of area
-	for v in vertices:
-		calc_grad_area_vertex(v)
+	for e_id in energies:
+		var e = energies[e_id]
+		e.calc_forces()
 	
 	# Project forces
-	if has_volume_constraint():
-		calc_volume_gradient()
+	if has_constraints():
+		calc_constraints_gradient()
 		calc_magnitude_constraint_matrix()
 		calc_magnitude_constraint_force_product_vector()
 		calc_force_projection_factor_vector()
 		
-		for i in vol_constraint_bids.size():
-			for v in vertices:
-				v.add_force( GRAD_AREA_KEY, [
-					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[0],
-					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[1],
-					-A.get_i(i) * v.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[2]
+		for v in vertices:
+			v.set_force_zero( FORCE_PROJ_KEY )
+			for i in constr_quantities_ids.size():
+				v.add_force( FORCE_PROJ_KEY, [
+					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[0],
+					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[1],
+					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[2]
 					] )
-
-func calc_grad_area_vertex(vertex) -> void:
-	vertex.set_force_zero( GRAD_AREA_KEY )
-	for f_id in vertex.con_facets:
-		var vector = facets[ f_id ].get_oposite_side_rotated(vertex)
-		
-		vertex.add_force(GRAD_AREA_KEY, [.5*vector.x, .5*vector.y, .5*vector.z] )
 
 # MAGNITUDE RESTORATION
 
+func calc_constraints_gradient() -> void:
+	for q_id in quantities:
+		var q = quantities[q_id]
+		if q.constrained:
+			q.calc_forces()
+
 func _on_volume_constraints_changed(b_id : int, constr : bool) -> void:
-	if constr:
-		if not vol_constraint_bids.has(b_id):
-			vol_constraint_bids.append(b_id)
-	else:
-		vol_constraint_bids.erase(b_id)
+	#if constr:
+	#	if not vol_constraint_bids.has(b_id):
+	#		vol_constraint_bids.append(b_id)
+	#else:
+	#	vol_constraint_bids.erase(b_id)
 	
 	calc_characteristics()
 
 func _on_body_removed(b_id : int) -> void:
-	bodies.erase(b_id)
-	vol_constraint_bids.erase(b_id)
-	bodies_changed.emit(bodies)
+	#bodies.erase(b_id)
+	#vol_constraint_bids.erase(b_id)
+	#bodies_changed.emit(bodies)
 	
 	calc_characteristics()
 
-func has_volume_constraint() -> bool:
-	return vol_constraint_bids.size() > 0
+func has_constraints() -> bool:
+	for q_id in quantities:
+		var q = quantities[q_id]
+		if q.constrained: return true
+	return false
 
 ## Calculate magnitude restoration vectors
 func calc_magnitude_restoration_vectors() -> void:
 	# Volume constraints
-	calc_volume_gradient()
+	calc_constraints_gradient()
 	calc_magnitude_constraint_matrix()
 	calc_magnitude_differences_vector()
 	calc_magnitude_restoration_vectors_factors()
@@ -284,82 +244,57 @@ func calc_magnitude_restoration_vectors() -> void:
 	for vertex in vertices:
 		vertex.set_force_zero( REST_VECT_KEY )
 		
-		for i in vol_constraint_bids.size():
+		for i in constr_quantities_ids.size():
 			vertex.add_force( REST_VECT_KEY,
-				[ C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[0],
-				C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[1],
-				C.get_i(i) * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[2],
+				[ C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[0],
+				C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[1],
+				C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[2],
 				] )
-
-## Calculates all volume gradients for each constrained body
-func calc_volume_gradient() -> void:
-	for b_id in vol_constraint_bids:
-		calc_volume_gradient_body( bodies[b_id] )
-
-## For given body, calculates volume gradient for all vertices.
-## Note: gradient is zero if the vertex is not part of the body.
-func calc_volume_gradient_body(body) -> void:
-	for vertex in vertices:
-		vertex.set_force_zero( body.GRAD_VOLUME_BODY_KEY )
-		
-		for fid in vertex.con_facets:
-			var f = facets[fid]
-			if f.is_body_connected(body):
-				var q = f.get_next_vertex(vertex).get_as_vector()
-				var r = f.get_prev_vertex(vertex).get_as_vector()
-				var prod = q.cross(r)
-				
-				# If the id is negative the volume contribution should be the opposite
-				# as the actual volume contribution is the one that would result from a
-				# facet with the opposite orientation.
-				if f.is_body_inverse(body): prod = -prod
-				
-				vertex.add_force( body.GRAD_VOLUME_BODY_KEY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
 
 func calc_magnitude_constraint_matrix() -> void:
 	K = SquareMatrix.new()
-	K.init( vol_constraint_bids.size() )
+	K.init( constr_quantities_ids.size() )
 	
-	for i in vol_constraint_bids.size():
+	for i in constr_quantities_ids.size():
 		for j in i+1:
 			var dot_product : float = 0.
 			for vertex in vertices:
 				for d in globals.AMBIENT_DIMENSION:
-					dot_product += vertex.forces[ bodies[ vol_constraint_bids[j] ].GRAD_VOLUME_BODY_KEY ].coords[d] * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[d]
+					dot_product += vertex.forces[ quantities[ constr_quantities_ids[j] ].GRAD_KEY ].coords[d] * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[d]
 			
 			K.set_ij(i, j, dot_product)
 			K.set_ij(j, i, dot_product)
+	print(K.content)
 
 func calc_magnitude_constraint_force_product_vector() -> void:
 	F = VectorN.new()
-	F.init(vol_constraint_bids.size())
+	F.init(constr_quantities_ids.size())
 	
-	for i in vol_constraint_bids.size():
+	for i in constr_quantities_ids.size():
 		var dot_product : float = 0.
 		for vertex in vertices:
 			for d in globals.AMBIENT_DIMENSION:
-				# Should sum every force before
-				dot_product += vertex.forces[ GRAD_AREA_KEY ].coords[d] * vertex.forces[ bodies[ vol_constraint_bids[i] ].GRAD_VOLUME_BODY_KEY ].coords[d]
+				for e_id in energies:
+					var e = energies[e_id]
+					dot_product += vertex.forces[ e.GRAD_KEY ].coords[d] * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[d]
 		
 		F.set_i(i, dot_product)
 
 func calc_force_projection_factor_vector() -> void:
 	A = VectorN.new()
-	A.init(vol_constraint_bids.size())
 	
 	A = K.get_inverse().product_by_vector(F)
 
 func calc_magnitude_differences_vector() -> void:
 	DELTA = VectorN.new()
-	DELTA.init(vol_constraint_bids.size())
+	DELTA.init(constr_quantities_ids.size())
 	
-	for i in DELTA.dimension:
-		calc_volume(bodies[ vol_constraint_bids[i] ])
-		DELTA.set_i(i, bodies[ vol_constraint_bids[i] ].volume_constraint - bodies[ vol_constraint_bids[i] ].get_volume())
+	for i in constr_quantities_ids.size():
+		DELTA.set_i(i, quantities[ constr_quantities_ids[i] ].target -  quantities[ constr_quantities_ids[i] ].calc_energy())
 
 func calc_magnitude_restoration_vectors_factors() -> void:
 	C = VectorN.new()
-	C.init(vol_constraint_bids.size())
+	C.init(constr_quantities_ids.size())
 	
 	C = K.get_inverse().product_by_vector(DELTA)
 
@@ -376,14 +311,19 @@ func restore_coords() -> void:
 func alter_coordinates() -> void:
 	# Force 1
 	# Gradient of area
-	for v in vertices:
-		v.apply_forces(GRAD_AREA_KEY)
-	
-	if has_volume_constraint():
-		calc_magnitude_restoration_vectors()
-		
+	for e_id in energies:
+		var e = energies[e_id]
 		for v in vertices:
-			v.apply_vector(REST_VECT_KEY)
+			v.apply_forces(e.GRAD_KEY)
+	
+	if has_constraints():
+		for v in vertices:
+			v.apply_forces(FORCE_PROJ_KEY)
+			
+		#calc_magnitude_restoration_vectors()
+		
+		#for v in vertices:
+		#	v.apply_vector(REST_VECT_KEY)
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate( i: int = -1 ) -> void:
@@ -437,7 +377,7 @@ func iterate( i: int = -1 ) -> void:
 			globals.time_step = s0
 			restore_coords()
 			alter_coordinates()
-			s0_energy = get_total_area()
+			s0_energy = get_energy()
 			# print("Total area %s: %s" % [s0, s0_area])
 		
 		restore_coords()
@@ -532,14 +472,19 @@ func refine(terminal : bool = false) -> void:
 		# Reinit the facet to be the central facet now
 		f.init( f.get_id(), edges[-3], edges[-2], edges[-1])
 		
-		# Add new facets to bodies
-		for b_id in bodies:
-			var b = bodies[b_id]
-			if f.is_body_connected(b):
-				var inverse : bool = f.is_body_inverse(b)
-				b.add_facet(new_facets[-3], inverse)
-				b.add_facet(new_facets[-2], inverse)
-				b.add_facet(new_facets[-1], inverse)
+		if f.body_id != -1:
+			var b = quantities[f.body_id]
+			var inverse : bool = f.is_body_inverse(b)
+			b.add_facet(new_facets[-3], inverse)
+			b.add_facet(new_facets[-2], inverse)
+			b.add_facet(new_facets[-1], inverse)
+		
+		if f.bodyinverse_id != -1:
+			var b = quantities[f.body_id]
+			var inverse : bool = f.is_body_inverse(b)
+			b.add_facet(new_facets[-3], inverse)
+			b.add_facet(new_facets[-2], inverse)
+			b.add_facet(new_facets[-1], inverse)
 	
 	# Add new facets to facet array
 	for f in new_facets:
@@ -581,37 +526,11 @@ func unload() -> void:
 	for f in facets:
 		f.queue_free()
 	
-	for b_id in bodies:
-		var b = bodies[b_id]
-		b.queue_free()
-	
 	vertices.clear()
 	edges.clear()
 	facets.clear()
 	
-	bodies.clear()
-	vol_constraint_bids.clear()
-	n_hist_body = 0
-
-# FILE LOAD
-
-func set_file_read(_file_read : FileRead) -> void:
-	file_read_strat = _file_read
-
-func load_file(file_content: String) -> bool:
-	unload()
-	if not file_read_strat.load_file(file_content, self):
-		return false
-	
-	# TODO: check face orientation compatibility
-	
-	init()
-	return true
-
-# FILE WRITE
-
-func set_file_write(_file_write : FileWrite) -> void:
-	file_write_strat = _file_write
-
-func write_to_file(file : String) -> void:
-	file_write_strat.write_to_file(file, self)
+	energies.clear()
+	quantities.clear()
+	constr_quantities_ids.clear()
+	n_hist_quantity = 0

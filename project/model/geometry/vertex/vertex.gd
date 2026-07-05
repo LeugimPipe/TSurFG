@@ -1,4 +1,5 @@
 extends Node
+class_name Vertex
 # TODO: probablemente no deberia ser un Node
 # Sino algo mas ligero
 

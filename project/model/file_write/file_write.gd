@@ -1,5 +1,5 @@
 extends RefCounted
-class_name FileWrite
+class_name FileWriteInterface
 
 ## File writing strategy interface.
 

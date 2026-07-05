@@ -16,8 +16,8 @@ func set_file_loaded(value: bool) -> void:
 ## File content.
 var file_content = ""
 
-@export var geom_scene : PackedScene
-var geom
+@export var figure_scene : PackedScene
+var figure : Figure
 
 var view
 
@@ -29,8 +29,8 @@ var file_select
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	file_loaded_mutex = Mutex.new()
-	geom = geom_scene.instantiate()
-	add_child(geom)
+	figure = figure_scene.instantiate()
+	add_child(figure)
 	
 	var args = OS.get_cmdline_user_args()
 	
@@ -65,8 +65,8 @@ func load_file(terminal : bool = false) :
 	else:
 		file_content = file.get_as_text()
 		
-		geom.set_file_read( set_file_read_strat() )
-		set_file_loaded( geom.load_file(file_content) )
+		figure.set_file_read( set_file_read_strat() )
+		set_file_loaded( figure.load_file(file_content) )
 		
 		if file_loaded:
 		
@@ -90,7 +90,7 @@ func put_down_user_file_load(terminal : bool = false) -> void:
 
 ## Selects a file reading strategy to pass.
 ## Selection done according to file_content.
-func set_file_read_strat() -> FileRead:
+func set_file_read_strat() -> FileReadInterface:
 	# Eliminate initial white space
 	while file_content[0] == " " or file_content == "\n" or file_content == "\t":
 		file_content = file_content.right(-1)
@@ -135,25 +135,25 @@ func _input(_event: InputEvent) -> void:
 	if not file_loaded: return
 	if Input.is_action_just_pressed("iterate"):
 		printraw("\n")
-		geom.iterate_n()
+		figure.geom.iterate_n()
 		globals.print_prompt()
 		
 	if Input.is_action_just_pressed("refine"):
 		printraw("\n")
-		geom.refine()
+		figure.geom.refine()
 		globals.print_prompt()
 		
 	if Input.is_action_just_pressed("cam_reset"):
-		geom.reset_cam()
+		figure.geom.reset_cam()
 		
 	if Input.is_action_just_pressed("cam_focus"):
-		geom.focus_cam()
+		figure.geom.focus_cam()
 
 # GUI INPUT
 func _on_iterate_button_pressed() -> void:
 	if not file_loaded: return
 	printraw("\n")
-	geom.iterate_n()
+	figure.geom.iterate_n()
 	globals.print_prompt()
 
 func _on_iterate_button_n_pressed() -> void:
@@ -165,7 +165,7 @@ func _on_iterate_button_n_pressed() -> void:
 		push_error("Invalid number of iterations")
 	else:
 		n = n.to_int()
-		geom.iterate_n(n)
+		figure.geom.iterate_n(n)
 	
 	globals.print_prompt()
 
@@ -211,7 +211,7 @@ func _on_change_time_step_mode_pressed() -> void:
 func _on_refine_button_pressed() -> void:
 	if not file_loaded: return
 	printraw("\n")
-	geom.refine()
+	figure.geom.refine()
 	globals.print_prompt()
 
 func _on_volumes_button_pressed() -> void:
@@ -219,9 +219,9 @@ func _on_volumes_button_pressed() -> void:
 	
 	if volumes_display == null:
 		volumes_display = load("res://controller/gui/volumes_display/volumes_display.tscn").instantiate()
-		geom.bodies_changed.connect(volumes_display._on_bodies_changed)
-		volumes_display.add_body_whole.connect(geom._on_add_body_whole)
-		volumes_display.init( geom.bodies )
+		figure.geom.bodies_changed.connect(volumes_display._on_bodies_changed)
+		volumes_display.add_body_whole.connect( figure.geom._on_add_body_whole )
+		volumes_display.init( figure.geom.bodies )
 		$GUI.add_child(volumes_display)
 		$GUI/EvolutionControls/VolumesButton.text = "Hide volumes"
 		
@@ -263,8 +263,8 @@ func _on_file_select_file_selected(file : String) -> void:
 	# Only one strategy for one, no need to process
 	file_write = FileWriteFe.new()
 	
-	geom.set_file_write(file_write)
-	geom.write_to_file(file)
+	figure.set_file_write(file_write)
+	figure.write_to_file(file)
 
 # TERMINAL INPUT
 
@@ -304,13 +304,13 @@ func terminal_input() -> void:
 					match input:
 						# Iterate
 						"g":
-							geom.call_deferred("iterate_n", 1, true)
+							figure.geom.call_deferred("iterate_n", 1, true)
 							# Wait for action to complete
 							globals.semaphore.wait()
 						
 						# Refine
 						"r":
-							geom.call_deferred("refine", true)
+							figure.geom.call_deferred("refine", true)
 							# Wait for action to complete
 							globals.semaphore.wait()
 						
@@ -362,7 +362,7 @@ func terminal_input() -> void:
 										push_error("Invalid number of iterations %s" % input)
 									else:
 										var n = input.to_int()
-										geom.call_deferred("iterate_n", n, true)
+										figure.geom.call_deferred("iterate_n", n, true)
 										# Wait for action to complete
 										globals.semaphore.wait()
 								

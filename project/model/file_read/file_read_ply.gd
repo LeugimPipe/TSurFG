@@ -1,4 +1,4 @@
-extends FileRead
+extends FileReadInterface
 class_name FileReadPly
 
 func error() -> void:

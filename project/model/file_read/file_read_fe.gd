@@ -1,4 +1,4 @@
-extends FileRead
+extends FileReadInterface
 class_name FileReadFe
 
 func error() -> void:
@@ -206,9 +206,10 @@ func load_file(_file_content : String, _geom : Geometry) -> bool:
 			error()
 			push_error("Invalid body number %s", body_oid)
 			return false
-		body_oid = body_oid.to_int()
 		
-		geom.add_body(body_oid)
+		body_oid = body_oid.to_int()
+		var body_volume = VolumeBody.new(geom, body_oid)
+		geom.add_quantity(body_volume)
 		
 		# Get body facet list
 		while file_content[0] != "\n" and  check_head_is_int():
@@ -227,7 +228,7 @@ func load_file(_file_content : String, _geom : Geometry) -> bool:
 			var f_ids : PackedInt32Array
 			f_ids = geom.f_get_ids_from_oid( abs(cur) ) 
 			for f_id in f_ids:
-				geom.bodies[ geom.n_hist_body-1 ].add_facet( geom.facets[f_id], cur < 0 )
+				body_volume.add_facet(geom.facets[f_id], cur < 0)
 			
 		while file_content[0] != "\n":
 				
@@ -246,8 +247,8 @@ func load_file(_file_content : String, _geom : Geometry) -> bool:
 					error()
 					push_error("Invalid volume constraint %s for body %s" % [cur, body_oid])
 					return false
-					
-				geom.bodies[ geom.n_hist_body-1 ].add_vol_constraint(cur.to_float())
+				
+				body_volume.set_magnitude_constraint(cur.to_float())
 			
 			else: consume(1)
 		# Consume rest of line

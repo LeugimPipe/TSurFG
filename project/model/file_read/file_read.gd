@@ -1,5 +1,5 @@
 extends RefCounted
-class_name FileRead
+class_name FileReadInterface
 
 ## File reading strategy interface.
 

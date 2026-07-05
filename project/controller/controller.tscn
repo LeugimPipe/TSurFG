@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://degmn3bui161b"]
 
 [ext_resource type="Script" uid="uid://cd04045x1vdav" path="res://controller/controller.gd" id="1_2kald"]
-[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/geometry/geometry.tscn" id="2_b0n65"]
+[ext_resource type="PackedScene" uid="uid://cxq7eydbq5xnk" path="res://model/figure/figure.tscn" id="2_2kald"]
 
 [node name="Controller" type="Node" unique_id=975899470]
 script = ExtResource("1_2kald")
-geom_scene = ExtResource("2_b0n65")
+figure_scene = ExtResource("2_2kald")
 
 [node name="GUI" type="CanvasLayer" parent="." unique_id=601676699]
 

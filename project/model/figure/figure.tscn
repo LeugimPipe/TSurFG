@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cxq7eydbq5xnk"]
+
+[ext_resource type="Script" uid="uid://dn8o636slixj4" path="res://model/figure/figure.gd" id="1_5a2cu"]
+[ext_resource type="PackedScene" uid="uid://dojuy3buxwfa6" path="res://model/geometry/geometry.tscn" id="2_rmkdf"]
+
+[node name="Figure" type="Node" unique_id=1338693824]
+script = ExtResource("1_5a2cu")
+geom_scene = ExtResource("2_rmkdf")

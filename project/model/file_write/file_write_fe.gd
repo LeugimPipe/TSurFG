@@ -1,4 +1,4 @@
-extends FileWrite
+extends FileWriteInterface
 class_name FileWriteFe
 
 ## Concrete file writing strategy object for .fe files
