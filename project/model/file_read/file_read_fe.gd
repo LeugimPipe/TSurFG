@@ -88,8 +88,8 @@ func process_vertices_section() -> bool:
 		vert_id = vert_id.to_int()
 		
 		# Get vertex coordinates
-		var coords : PackedFloat32Array
-		coords.resize(globals.AMBIENT_DIMENSION)
+		var coords : VectorN = VectorN.new()
+		coords.init(globals.AMBIENT_DIMENSION)
 		for i in globals.AMBIENT_DIMENSION:
 			
 			#Get coord string
@@ -99,7 +99,7 @@ func process_vertices_section() -> bool:
 				push_error("Invalid x%s coordinate %s for vertex %s" % [i+1, cur, vert_id])
 				return false
 			
-			coords[i] = cur.to_float()
+			coords.set_i(i, cur.to_float())
 		
 		# Extra attributes
 		var rest_of_line = get_and_consume_rest_of_line()
@@ -206,22 +206,20 @@ func process_faces_section() -> bool:
 		
 		if e.size() == 4:
 			# Add new vertex in center
-			var coords : PackedFloat32Array
-			coords.resize(3)
-			coords.fill(0)
+			var coords : VectorN = VectorN.new()
+			coords.init(globals.AMBIENT_DIMENSION)
 			
 			for i in 4:
-				var edge = geom.edges[ geom.e_get_id_from_oid( abs(e[i]) ) ]
-				var vertex
+				var edge : Edge = geom.edges[ geom.e_get_id_from_oid( abs(e[i]) ) ]
+				var vertex : Vertex
 				if e[i] < 0:
 					vertex = edge.head
 				else:
 					vertex = edge.tail
 				
-				for j in 3:
-					coords[j] += vertex.coords[j]
+				coords = coords.sum(vertex.coords)
 			
-			for i in 3: coords[i] /= 4
+			coords = coords.product_by_scalar( 1./4 )
 			
 			geom.add_vertex(coords)
 			

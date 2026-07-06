@@ -176,9 +176,8 @@ func load_file(_file_content : String, _geom : Geometry) -> bool:
 	for i in n_vertices:
 		
 		# Get vertex coordinates
-		var x
-		var y
-		var z
+		var coords : VectorN = VectorN.new()
+		coords.init(globals.AMBIENT_DIMENSION)
 		
 		for j in n_prop_verts:
 			var cur = get_and_consume_head()
@@ -191,11 +190,11 @@ func load_file(_file_content : String, _geom : Geometry) -> bool:
 					if j == z_pos: push_error("Invalid z coordinate %s for vertex %s" % [cur, i])
 					return false
 				
-				if j == x_pos: x = cur.to_float()
-				if j == y_pos: y = cur.to_float()
-				if j == z_pos: z = cur.to_float()
+				if j == x_pos: coords.set_i(0, cur.to_float())
+				if j == y_pos: coords.set_i(1, cur.to_float())
+				if j == z_pos: coords.set_i(2, cur.to_float())
 		
-		geom.add_vertex([x,y,z], i)
+		geom.add_vertex(coords, i)
 	
 	# FACET LIST
 	for i in n_faces:

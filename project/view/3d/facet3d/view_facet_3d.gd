@@ -4,46 +4,46 @@ var v0 : Vector3 = Vector3.ZERO
 var v1 : Vector3 = Vector3.ZERO
 var v2 : Vector3 = Vector3.ZERO
 
-func init(_v0, _v1, _v2) -> void:
-	v0.x = _v0.coords[0]
-	v0.y = _v0.coords[1]
-	if _v0.coords.size() > 2:
-		v0.z = _v0.coords[2]
+func init(_v0 : Vertex, _v1 : Vertex, _v2 : Vertex) -> void:
+	v0.x = _v0.coords.get_i(0)
+	v0.y = _v0.coords.get_i(1)
+	if _v0.coords.dimension > 2:
+		v0.z = _v0.coords.get_i(2)
 	_v0.coords_changed.connect(self.on_v0_changed)
 	
-	v1.x = _v1.coords[0]
-	v1.y = _v1.coords[1]
-	if _v1.coords.size() > 2:
-		v1.z = _v1.coords[2]
+	v1.x = _v1.coords.get_i(0)
+	v1.y = _v1.coords.get_i(1)
+	if _v1.coords.dimension > 2:
+		v1.z = _v1.coords.get_i(2)
 	_v1.coords_changed.connect(self.on_v1_changed)
 	
-	v2.x = _v2.coords[0]
-	v2.y = _v2.coords[1]
-	if _v2.coords.size() > 2:
-		v2.z = _v2.coords[2]
+	v2.x = _v2.coords.get_i(0)
+	v2.y = _v2.coords.get_i(1)
+	if _v2.coords.dimension > 2:
+		v2.z = _v2.coords.get_i(2)
 	_v2.coords_changed.connect(self.on_v2_changed)
 	
 	draw()
 
-func on_v0_changed(coords : Array) -> void:
-	v0.x = coords[0]
-	v0.y = coords[1]
-	if coords.size() > 2:
-		v0.z = coords[2]
+func on_v0_changed(coords : VectorN) -> void:
+	v0.x = coords.get_i(0)
+	v0.y = coords.get_i(1)
+	if coords.dimension > 2:
+		v0.z = coords.get_i(2)
 	draw()
 
-func on_v1_changed(coords : Array) -> void:
-	v1.x = coords[0]
-	v1.y = coords[1]
-	if coords.size() > 2:
-		v1.z = coords[2]
+func on_v1_changed(coords : VectorN) -> void:
+	v1.x = coords.get_i(0)
+	v1.y = coords.get_i(1)
+	if coords.dimension > 2:
+		v1.z = coords.get_i(2)
 	draw()
 
-func on_v2_changed(coords : Array) -> void:
-	v2.x = coords[0]
-	v2.y = coords[1]
-	if coords.size() > 2:
-		v2.z = coords[2]
+func on_v2_changed(coords : VectorN) -> void:
+	v2.x = coords.get_i(0)
+	v2.y = coords.get_i(1)
+	if coords.dimension > 2:
+		v2.z = coords.get_i(2)
 	draw()
 
 func draw() -> void:
