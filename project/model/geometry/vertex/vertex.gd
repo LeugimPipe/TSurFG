@@ -20,16 +20,16 @@ func set_coords(value : Array):
 	if !globals.CALCULATING_STEP:
 		coords_changed.emit(coords)
 
-# Stores the indices of the connected vertices
-# Same order as con_edges
+## Stores the indices of the connected vertices.
+## Same order as con_edges.
 var con_vertices : PackedInt32Array = []
 
-# Stores which edges are connected to this vertex
-# Stores the signed index
-# Sign is positive if it's the tail, negative otherwise
+## Stores which edges are connected to this vertex.
+## Stores the signed index.
+## Sign is positive if it's the tail, negative otherwise.
 var con_edges : PackedFloat32Array = []
 
-# Stores which facets are connected to this vertex
+## Stores which facets are connected to this vertex.
 var con_facets : PackedInt32Array = []
 
 var view
@@ -171,6 +171,7 @@ func add_force(key : String, force : PackedFloat32Array) -> void:
 	]
 
 func apply_forces(key : String) -> void:
+	if fixed: return
 	if not forces.has(key): return
 	coords = [
 		coords[0] + globals.time_step * forces[key].coords[0],
@@ -178,6 +179,7 @@ func apply_forces(key : String) -> void:
 		coords[2] + globals.time_step * forces[key].coords[2] ]
 
 func apply_vector( key : String) -> void:
+	if fixed: return
 	if not forces.has(key): return
 	coords = [
 		coords[0] + forces[key].coords[0],

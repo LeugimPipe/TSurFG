@@ -1,6 +1,12 @@
 extends Node
 class_name Geometry
 
+## Read file strategy.
+var file_read_strat : FileReadInterface
+
+## Write file strategy.
+var file_write_strat : FileWriteInterface
+
 @export var vertex_scene : PackedScene
 @export var edge_scene : PackedScene
 @export var facet_scene : PackedScene
@@ -9,7 +15,7 @@ var vertices : Array
 var edges : Array
 var facets : Array
 
-var area_energy : Area
+var report_quantity : QuantityInterface
 ## Stores quantity computation strategies to be used for force computation.
 var energies : Dictionary[int, QuantityInterface]
 ## Stores quantity computation strategies to be used for information reporting.
@@ -17,6 +23,8 @@ var energies : Dictionary[int, QuantityInterface]
 var quantities : Dictionary[int, QuantityInterface]
 var constr_quantities_ids : PackedInt32Array
 var n_hist_quantity : int = 0
+
+var string_model : bool = false
 
 signal chars_calced
 signal quantities_changed
@@ -53,14 +61,20 @@ var C : VectorN
 
 # Functions after initialization
 func init() -> void:
-	area_energy = Area.new(self)
+	if string_model:
+		report_quantity = Length.new(self)
+		add_energy( Length.new(self) )
+	else:
+		report_quantity = Area.new(self)
+		add_energy( Area.new(self) )
+	
 	calc_characteristics()
 	
-	var main = get_node("../..")
+	var main = get_node("..")
 	#print(main.get_children())
 	await main.child_entered_tree
 	#print(main.get_children())
-	var main3d = get_node("../../Main3D")
+	var main3d = get_node("../Main3D")
 	await main3d.ready
 	#print(main.get_children())
 	cam_info_calculated.emit(center, radius)
@@ -70,7 +84,12 @@ func init() -> void:
 func print_info(i : int = -1) -> void:
 	var s : String = ""
 	if i != -1: s += str(i+1) + ": "
-	s += ("Total area: %s\t" % area_energy.calc_energy() +
+	s += "Total "
+	
+	if string_model: s+= "length"
+	else: s += "area"
+	
+	s += (": %s\t" % report_quantity.calc_energy() +
 		"Total energy: %s\t" % get_energy())
 	if i != -1: s += "Time step: %s\t" % globals.time_step
 	globals.printer(s)
@@ -327,6 +346,7 @@ func restore_coords() -> void:
 		v.restore_coords()
 
 func alter_coordinates() -> void:
+	
 	for e_id in energies:
 		var e = energies[e_id]
 		for v in vertices:
@@ -343,6 +363,7 @@ func alter_coordinates() -> void:
 
 # TODO: hacer mejor con clase buena, todas las fuerzas, etc
 func iterate( i: int = -1 ) -> void:
+	
 	if globals.optimizing_time_step:
 		
 		globals.CALCULATING_STEP = true
@@ -358,19 +379,31 @@ func iterate( i: int = -1 ) -> void:
 		globals.time_step = s1
 		alter_coordinates()
 		var s1_energy = get_energy()
-		# print("Total area %s: %s" % [s1, s1_area])
+		#print("Total energy %s: %s" % [s1, s1_energy])
 	
 		restore_coords()
 		globals.time_step = s0
 		alter_coordinates()
 		var s0_energy = get_energy()
-		# print("Total area %s: %s" % [s0, s0_area])
+		#print("Total energy %s: %s" % [s0, s0_energy])
 	
 		restore_coords()
 		globals.time_step = s2
 		alter_coordinates()
 		var s2_energy = get_energy()
-		# print("Total area %s: %s" % [s2, s2_area])
+		#print("Total energy %s: %s" % [s2, s2_energy])
+		
+		while (s1_energy > s0_energy):
+			s2 = s1
+			s2_energy = s1_energy
+			s1 = s0
+			s1_energy = s0_energy
+			s0 = s1/2
+			globals.time_step = s0
+			restore_coords()
+			alter_coordinates()
+			s0_energy = get_energy()
+			#print("Total energy %s: %s" % [s0, s0_energy])
 		
 		while (s1_energy > s2_energy):
 			s0 = s1
@@ -382,23 +415,11 @@ func iterate( i: int = -1 ) -> void:
 			restore_coords()
 			alter_coordinates()
 			s2_energy = get_energy()
-			# print("Total area %s: %s" % [s2, s2_area])
-	
-		while (s1_energy > s0_energy):
-			s2 = s1
-			s2_energy = s1_energy
-			s1 = s0
-			s1_energy = s0_energy
-			s0 = s1/2
-			globals.time_step = s0
-			restore_coords()
-			alter_coordinates()
-			s0_energy = get_energy()
-			# print("Total area %s: %s" % [s0, s0_area])
+			#print("Total area %s: %s" % [s2, s2_energy])
 		
 		restore_coords()
 		
-		if (2*s0_energy - 3*s1_energy + s2_energy == 0.0): globals.time_step = 1.0
+		if (2*s0_energy - 3*s1_energy + s2_energy == 0.0): globals.time_step = 0.1
 		else: globals.time_step = 0.75 * s1 * (4*s0_energy - 5*s1_energy + s2_energy) / (2*s0_energy - 3*s1_energy + s2_energy)
 		globals.time_step = min(globals.time_step, 1.0)
 		
@@ -527,6 +548,10 @@ func f_get_ids_from_oid(_oid : int) -> PackedInt32Array:
 # GEOMETRY UNLOAD
 
 func unload() -> void:
+	globals.time_step = 0.1
+	
+	string_model = false
+	
 	for v in vertices:
 		v.queue_free()
 	
@@ -544,3 +569,26 @@ func unload() -> void:
 	quantities.clear()
 	constr_quantities_ids.clear()
 	n_hist_quantity = 0
+
+# FILE LOAD
+
+func set_file_read(_file_read : FileReadInterface) -> void:
+	file_read_strat = _file_read
+
+func load_file(file_content: String) -> bool:
+	unload()
+	if not file_read_strat.load_file(file_content, self):
+		return false
+	
+	# TODO: check face orientation compatibility
+	
+	init()
+	return true
+
+# FILE WRITE
+
+func set_file_write(_file_write : FileWriteInterface) -> void:
+	file_write_strat = _file_write
+
+func write_to_file(file : String) -> void:
+	file_write_strat.write_to_file(file, self)

@@ -35,8 +35,8 @@ func consume_until(s : String, n : int = 1) -> void:
 func consume_line(n: int = 1) -> void:
 	consume_until("\n", n)
 
-# Returns and consumes first part of file_content
-# (default separator \n)
+## Returns and consumes first part of file_content
+## (default separator first white character)
 func get_and_consume_head(separator: String = "") -> String:
 	var ret : String
 	
@@ -47,12 +47,34 @@ func get_and_consume_head(separator: String = "") -> String:
 		ret = file_content.left( pos_sep )
 		consume( pos_sep+1 )
 	else:
+		
 		while file_content.length() > 0 and !is_new_line_or_white(file_content[0]):
 			ret += file_content[0]
 			consume(1)
 	
 	consume_white_or_end_line()
 	
+	return ret
+
+func get_and_consume_head_respect_eol() -> String:
+	var ret : String = ""
+	consume_white_space()
+	
+	while file_content.length() > 0 and not is_new_line_or_white(file_content[0]):
+		ret += file_content[0]
+		consume(1)
+	
+	consume_white_space()
+	return ret
+
+func get_and_consume_rest_of_line() -> String:
+	var ret : String = ""
+	
+	while file_content.length() > 0 and not is_new_line(file_content[0]):
+		ret += file_content[0]
+		consume(1)
+	
+	consume_white_or_end_line()
 	return ret
 
 func consume_white_space() -> void:
@@ -82,6 +104,7 @@ func check_head_is_int() -> bool:
 	for i in 10:
 		if check_head( str(i) ): return true
 		if check_head( str(-i) ): return true
+	if check_head( "-0" ): return true
 	return false
 
 ## Checks first characters of file_content match check

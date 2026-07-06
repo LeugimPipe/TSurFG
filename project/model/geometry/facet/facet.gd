@@ -1,4 +1,5 @@
 extends Node
+class_name Facet
 
 var id : int = -1
 var oid : int = -1

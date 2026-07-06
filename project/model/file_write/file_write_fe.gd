@@ -14,6 +14,10 @@ func write_to_file(_file_name : String, _geom : Geometry) -> bool:
 	file.store_line("")
 	
 	# DEFINITIONS SECTION
+	if geom.string_model:
+		file.store_line("string")
+	
+	file.store_line("")
 	
 	# VERTICES SECTION
 	if not geom.vertices.is_empty():
@@ -60,13 +64,19 @@ func write_to_file(_file_name : String, _geom : Geometry) -> bool:
 	
 	file.store_line("")
 	
-	if not geom.bodies.is_empty():
-		file.store_line("bodies")
-		for b_id in geom.bodies:
-			var b = geom.bodies[b_id]
-			var line : String = str(b_id+1) + " "
+	var bodies_written : bool = false
+	for q_id in geom.quantities:
+		var q = geom.quantities[q_id]
+		# If it's a body
+		if q.description == VolumeBody.new(geom).description:
 			
-			for f_id in b.facet_ids:
+			if not bodies_written:
+				file.store_line("bodies")
+				bodies_written = true
+			
+			var line : String = str(q_id+1) + " "
+			
+			for f_id in q.facet_ids:
 				var f_idstr : String = ""
 				if f_id == -0.1 : f_idstr = str(-1)
 				else:
@@ -74,9 +84,9 @@ func write_to_file(_file_name : String, _geom : Geometry) -> bool:
 					f_idstr += str( abs(int(f_id))+1 )
 				
 				line += " " + f_idstr
-			
-			if b.volume_constrained:
-				line += " volume " + str(b.volume_constraint)
+				
+			if q.constrained:
+				line += " volume " + str(q.target)
 			
 			file.store_line(line)
 	

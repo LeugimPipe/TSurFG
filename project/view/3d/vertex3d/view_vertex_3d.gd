@@ -1,7 +1,7 @@
 extends MeshInstance3D
 
 func _ready() -> void:
-	get_node("/root/Controller/Figure/Geometry").cam_info_calculated.connect(change_radius)
+	get_node("/root/Controller/Geometry").cam_info_calculated.connect(change_radius)
 
 func init(_vertex) -> void:
 	position.x = _vertex.coords[0]

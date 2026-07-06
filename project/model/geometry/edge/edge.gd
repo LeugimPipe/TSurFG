@@ -1,4 +1,5 @@
 extends Node
+class_name Edge
 
 var id : int = -1
 var oid : int = -1
@@ -52,5 +53,27 @@ func midpoint() -> Array:
 	
 	for i in 3:
 		ret[i] = 0.5 * (tail.coords[i] + head.coords[i])
+	
+	return ret
+
+func length() -> float:
+	return (head.get_as_vector() - tail.get_as_vector()).length()
+
+func vector() -> PackedFloat32Array:
+	var ret : PackedFloat32Array
+	ret.resize(globals.AMBIENT_DIMENSION)
+	ret.fill(0.)
+	
+	for i in globals.AMBIENT_DIMENSION:
+		ret[i] = head.coords[i] - tail.coords[i]
+	
+	return ret
+
+func unit_vector() -> PackedFloat32Array:
+	var l : float = length()
+	var ret : PackedFloat32Array = vector()
+	
+	for i in globals.AMBIENT_DIMENSION:
+		ret[i] /= l
 	
 	return ret

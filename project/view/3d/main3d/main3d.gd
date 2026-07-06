@@ -2,7 +2,7 @@ extends Node3D
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	var body = get_node("../Figure/Geometry")
+	var body = get_node("../Geometry")
 	body.cam_info_calculated.connect(_on_body_cam_info_calculated)
 	body.cam_center_calculated.connect(_on_body_cam_center_calculated)
 
