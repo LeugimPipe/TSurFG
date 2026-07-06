@@ -379,19 +379,19 @@ func iterate( i: int = -1 ) -> void:
 		globals.time_step = s1
 		alter_coordinates()
 		var s1_energy = get_energy()
-		#print("Total energy %s: %s" % [s1, s1_energy])
+		print("Total energy %s: %s" % [s1, s1_energy])
 	
 		restore_coords()
 		globals.time_step = s0
 		alter_coordinates()
 		var s0_energy = get_energy()
-		#print("Total energy %s: %s" % [s0, s0_energy])
+		print("Total energy %s: %s" % [s0, s0_energy])
 	
 		restore_coords()
 		globals.time_step = s2
 		alter_coordinates()
 		var s2_energy = get_energy()
-		#print("Total energy %s: %s" % [s2, s2_energy])
+		print("Total energy %s: %s" % [s2, s2_energy])
 		
 		while (s1_energy > s0_energy):
 			s2 = s1
@@ -403,7 +403,7 @@ func iterate( i: int = -1 ) -> void:
 			restore_coords()
 			alter_coordinates()
 			s0_energy = get_energy()
-			#print("Total energy %s: %s" % [s0, s0_energy])
+			print("Total energy %s: %s" % [s0, s0_energy])
 		
 		while (s1_energy > s2_energy):
 			s0 = s1
@@ -415,7 +415,7 @@ func iterate( i: int = -1 ) -> void:
 			restore_coords()
 			alter_coordinates()
 			s2_energy = get_energy()
-			#print("Total area %s: %s" % [s2, s2_energy])
+			print("Total area %s: %s" % [s2, s2_energy])
 		
 		restore_coords()
 		
