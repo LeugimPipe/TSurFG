@@ -28,5 +28,4 @@ func calc_energy() -> float:
 	var ret = 0.
 	for f in geom.facets:
 		ret += f.area()
-		print(ret)
 	return ret

@@ -112,11 +112,16 @@ func area() -> float:
 	var v1_vector = get_v1().get_as_vector()
 	var v2_vector = get_v2().get_as_vector()
 	
+	if id == 0:
+		print(v0_vector)
+		print(v1_vector)
+		print(v2_vector)
+	
 	return (v1_vector-v0_vector).cross(v2_vector-v1_vector).length()/2
 
 func volume_contribution() -> float:
 	var ret: float = 0.
-	
+
 	var v0_vector = get_v0().get_as_vector()
 	var v1_vector = get_v1().get_as_vector()
 	var v2_vector = get_v2().get_as_vector()
