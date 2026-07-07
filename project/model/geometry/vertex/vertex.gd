@@ -6,17 +6,17 @@ class_name Vertex
 var id : int = -1
 var oid : int = -1
 
-# TODO
-# Las coordenadas deberian ser un tipo especial de Array a semejanza de Vector2 y Vector3
-# Una cosa como VectorN
-var coords : Array = []: set = set_coords
-var saved_coords : Array = []
+var coords : VectorN = VectorN.new(): set = set_coords
+var saved_coords : VectorN = VectorN.new()
 var fixed : bool = false
 
 signal coords_changed
 
-func set_coords(value : Array):
-	coords = value.duplicate()
+func set_coords(value : VectorN):
+	coords.init(value.dimension)
+	for i in coords.dimension:
+		coords.set_i(i, value.get_i(i))
+	
 	if !globals.CALCULATING_STEP:
 		coords_changed.emit(coords)
 
@@ -38,16 +38,17 @@ var view
 
 # List of forces acting on the node
 # Dictionary of Force nodes
-var forces : Dictionary[String, Variant]
+var forces : Dictionary[String, Force]
 
 func save_coords() -> void:
-	saved_coords = coords.duplicate()
+	saved_coords.init(globals.AMBIENT_DIMENSION)
+	saved_coords.content = coords.content.duplicate()
 
 func restore_coords() -> void:
-	coords = saved_coords.duplicate()
+	coords = saved_coords
 
 # Initialize the vertex
-func init(_id : int, _coords : Array = [], _oid : int = -1, _fixed : bool = false) -> void:
+func init(_id : int, _coords : VectorN = VectorN.new(), _oid : int = -1, _fixed : bool = false) -> void:
 	id = _id
 	coords = _coords
 	if _oid != -1: oid = _oid
@@ -59,13 +60,14 @@ func init(_id : int, _coords : Array = [], _oid : int = -1, _fixed : bool = fals
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/vertex3d/view_vertex_3d.tscn").instantiate()
 	
-	view.init(self)
-	add_child(view)
+	if view != null:
+		view.init(self)
+		add_child(view)
 
 func get_id() -> int:
 	return id
 
-func connect_edge(edge, tail: bool = true) -> void:
+func connect_edge(edge : Edge, tail: bool = true) -> void:
 	var e_id = edge.get_id()
 	
 	var v_id = -1
@@ -81,17 +83,17 @@ func connect_edge(edge, tail: bool = true) -> void:
 	con_vertices.append(v_id)
 	con_edges.append(e_id)
 
-func connect_facet(facet) -> void:
+func connect_facet(facet : Facet) -> void:
 	var f_id = facet.get_id()
 	con_facets.append(f_id)
 
-func is_vertex_connected(vertex) -> bool:
+func is_vertex_connected(vertex : Vertex) -> bool:
 	return is_vertex_connected_id(vertex.get_id())
 
 func is_vertex_connected_id(v_id : int) -> bool:
 	return v_id in con_vertices
 
-func is_edge_connected(edge) -> bool:
+func is_edge_connected(edge : Edge) -> bool:
 	return is_edge_connected_id(edge.get_id())
 
 func is_edge_connected_id(e_id : int) -> bool:
@@ -106,7 +108,7 @@ func disconnect_everything() -> void:
 	con_edges.clear()
 	con_facets.clear()
 
-func get_edge_index_from_vertex(vector) -> float:
+func get_edge_index_from_vertex(vector : Vertex) -> float:
 	return get_edge_index_from_v_id(vector.get_id())
 
 func get_edge_index_from_v_id(v_id: int) -> float:
@@ -120,18 +122,17 @@ func get_edge_index_from_v_id(v_id: int) -> float:
 
 func get_as_vector():
 	if globals.AMBIENT_DIMENSION == 2:
-		return Vector2(coords[0], coords[1])
+		return Vector2(coords.get_i(0), coords.get_i(1))
 	if globals.AMBIENT_DIMENSION == 3:
-		if coords.size() == 2:
-			return Vector3(coords[0], coords[1], 0)
-		if coords.size() == 3:
-			return Vector3(coords[0], coords[1], coords[2])
+		if coords.dimension == 2:
+			return Vector3(coords.get_i(0), coords.get_i(1), 0)
+		if coords.dimension == 3:
+			return Vector3(coords.get_i(0), coords.get_i(1), coords.get_i(2))
 
 ## Creates zero force with given key
 func init_force(key : String) -> void:
-	var f : PackedFloat32Array
-	f.resize(coords.size())
-	f.fill(0.)
+	var f : VectorN = VectorN.new()
+	f.init(globals.AMBIENT_DIMENSION)
 	forces[key] = force_scene.instantiate()
 	forces[key].init(f)
 	add_child(forces[key])
@@ -142,46 +143,36 @@ func set_force_zero(key: String) -> void:
 	if not forces.has(key):
 		init_force(key)
 	else:
-		var f : PackedFloat32Array
-		f.resize(coords.size())
-		f.fill(0.)
+		var f : VectorN = VectorN.new()
+		f.init(globals.AMBIENT_DIMENSION)
 		forces[key].init(f)
 
 ## Sets all existing forces to zero
 func set_forces_zero() -> void:
 	for key in forces:
 		var f = forces[key]
-		var f_coords : PackedFloat32Array
-		f_coords.resize( coords.size() )
-		f_coords.fill(0.)
+		var f_coords : VectorN = VectorN.new()
+		f_coords.init(globals.AMBIENT_DIMENSION)
 		f.init(f_coords)
 
 ## Add force (supposed to be VectorN)
 ## to force indicated by key.
 ## If such force does not exist,
 ## inits it and adds it
-func add_force(key : String, force : PackedFloat32Array) -> void:
+func add_force(key : String, force : VectorN) -> void:
 	if not forces.has(key):
 		init_force(key)
 	
-	forces[key].coords = [
-		forces[key].coords[0] + force[0],
-		forces[key].coords[1] + force[1],
-		forces[key].coords[2] + force[2],
-	]
+	forces[key].sum_vector(force)
 
 func apply_forces(key : String) -> void:
 	if fixed: return
 	if not forces.has(key): return
-	coords = [
-		coords[0] + globals.time_step * forces[key].coords[0],
-		coords[1] + globals.time_step * forces[key].coords[1],
-		coords[2] + globals.time_step * forces[key].coords[2] ]
+	
+	coords = coords.sum( forces[key].coords.product_by_scalar(globals.time_step) )
 
-func apply_vector( key : String) -> void:
+func apply_vector(key : String) -> void:
 	if fixed: return
 	if not forces.has(key): return
-	coords = [
-		coords[0] + forces[key].coords[0],
-		coords[1] + forces[key].coords[1],
-		coords[2] + forces[key].coords[2] ]
+	
+	coords = coords.sum( forces[key].coords )

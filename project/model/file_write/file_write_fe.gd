@@ -27,7 +27,9 @@ func write_to_file(_file_name : String, _geom : Geometry) -> bool:
 			var line : String = str(i+1) + " "
 			
 			for j in globals.AMBIENT_DIMENSION:
-				line += " " + str(v.coords[j])
+				line += " " + str(v.coords.get_i(j))
+			
+			if v.fixed: line += " fixed"
 			
 			file.store_line(line)
 	

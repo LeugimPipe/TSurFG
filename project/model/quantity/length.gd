@@ -11,15 +11,13 @@ func _init(_geom : Geometry) -> void:
 func calc_grad_vertex(_v : Vertex, _neg : bool = false) -> void:
 	super(_v)
 	for e_id in _v.con_edges:
-		var grad : PackedFloat32Array = geom.edges[abs(e_id)].unit_vector()
+		var grad : VectorN = geom.edges[abs(e_id)].unit_vector()
 		
 		if e_id >= 0:
-			for i in globals.AMBIENT_DIMENSION:
-				grad[i] = -grad[i]
+			grad = grad.oposite()
 		
 		if _neg:
-			for i in globals.AMBIENT_DIMENSION:
-				grad[i] = -grad[i]
+			grad = grad.oposite()
 		
 		_v.add_force(GRAD_KEY, grad )
 

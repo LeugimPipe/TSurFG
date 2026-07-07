@@ -1,20 +1,21 @@
 extends Node
+class_name Force
 
-# TODO
-# Las coordenadas deberian ser un tipo especial de Array a semejanza de Vector2 y Vector3
-# Una cosa como VectorN
-@export var coords : Array = [] : set = set_coords
+var coords : VectorN = VectorN.new(): set = set_coords
 
 signal coords_changed
 
-func set_coords(value : Array):
-	coords = value.duplicate()
+func set_coords(value : VectorN):
+	coords.init(value.dimension)
+	for i in coords.dimension:
+		coords.set_i(i, value.get_i(i))
+	
 	coords_changed.emit(coords)
 
 #var view
 
 # Initialize the force
-func init(_coords : Array = []) -> void:
+func init(_coords : VectorN = VectorN.new()) -> void:
 	coords = _coords
 	
 	#if globals.AMBIENT_DIMENSION == 2:
@@ -25,3 +26,6 @@ func init(_coords : Array = []) -> void:
 	
 	#view.init(self)
 	#add_child(view)
+
+func sum_vector(with : VectorN) -> void:
+	coords = coords.sum(with)

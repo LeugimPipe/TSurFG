@@ -17,6 +17,7 @@ func _init(_geom : Geometry, _oid : int = -1) -> void:
 
 func calc_grad_vertex(_v : Vertex, _neg : bool = false) -> void:
 	super(_v)
+	if globals.AMBIENT_DIMENSION != 3: return
 	for fid in _v.con_facets:
 		var f = geom.facets[fid]
 		if f.is_quantity_connected(self):
@@ -31,7 +32,15 @@ func calc_grad_vertex(_v : Vertex, _neg : bool = false) -> void:
 			
 			if _neg: prod = -prod
 			
-			_v.add_force( GRAD_KEY, [ 1/6. * prod.x, 1/6. * prod.y, 1/6. * prod.z] )
+			prod = 1/6. * prod
+			
+			var grad : VectorN = VectorN.new()
+			grad.init(globals.AMBIENT_DIMENSION)
+			grad.set_i(0, prod.x)
+			grad.set_i(1, prod.y)
+			grad.set_i(2, prod.z)
+			
+			_v.add_force( GRAD_KEY, grad )
 
 func calc_energy() -> float:
 	var vol = 0.

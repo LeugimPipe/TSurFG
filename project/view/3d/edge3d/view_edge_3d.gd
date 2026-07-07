@@ -6,34 +6,34 @@ var head : Vector3 = Vector3.ZERO
 func _ready() -> void:
 	get_node("/root/Controller/Geometry").cam_info_calculated.connect(change_radius)
 
-func init(_tail, _head) -> void:
-	tail.x = _tail.coords[0]
-	tail.y = _tail.coords[1]
-	if _tail.coords.size() > 2:
-		tail.z = _tail.coords[2]
+func init(_tail : Vertex, _head : Vertex) -> void:
+	tail.x = _tail.coords.get_i(0)
+	tail.y = _tail.coords.get_i(1)
+	if _tail.coords.dimension > 2:
+		tail.z = _tail.coords.get_i(2)
 	_tail.coords_changed.connect(self.on_tail_changed)
 	
-	head.x = _head.coords[0]
-	head.y = _head.coords[1]
-	if _head.coords.size() > 2:
-		head.z = _head.coords[2]
+	head.x = _head.coords.get_i(0)
+	head.y = _head.coords.get_i(1)
+	if _head.coords.dimension > 2:
+		head.z = _head.coords.get_i(2)
 	_head.coords_changed.connect(self.on_head_changed)
 	
 	draw()
 
-func on_tail_changed(coords : Array) -> void:
-	tail.x = coords[0]
-	tail.y = coords[1]
-	if coords.size() > 2:
-		tail.z = coords[2]
+func on_tail_changed(coords : VectorN) -> void:
+	tail.x = coords.get_i(0)
+	tail.y = coords.get_i(1)
+	if coords.dimension > 2:
+		tail.z = coords.get_i(2)
 	
 	draw()
 
-func on_head_changed(coords : Array) -> void:
-	head.x = coords[0]
-	head.y = coords[1]
-	if coords.size() > 2:
-		head.z = coords[2]
+func on_head_changed(coords : VectorN) -> void:
+	head.x = coords.get_i(0)
+	head.y = coords.get_i(1)
+	if coords.dimension > 2:
+		head.z = coords.get_i(2)
 	
 	draw()
 
@@ -57,6 +57,6 @@ func draw() -> void:
 	if segment.y < 0: lat = -lat
 	$Gimbal.rotation.z = lat
 
-func change_radius(_center : Array, radius : float) -> void:
+func change_radius(_center : VectorN, radius : float) -> void:
 	$Gimbal/EdgeVis.mesh.top_radius = min(  pow(radius, 3./2.) * 0.025, 0.025)
 	$Gimbal/EdgeVis.mesh.bottom_radius = min(  pow(radius, 3./2.) * 0.025, 0.025)

@@ -4,34 +4,34 @@ class_name Facet
 var id : int = -1
 var oid : int = -1
 
-var edge0
-var edge1
-var edge2
+var edge0 : Edge
+var edge1 : Edge
+var edge2 : Edge
 
-var inversee0
-var inversee1
-var inversee2
+var inversee0 : bool
+var inversee1 : bool
+var inversee2 : bool
 
-var v0
-var v1
-var v2
+var v0 : Vertex
+var v1 : Vertex
+var v2 : Vertex
 
 var view
 
-var edge0_id
-var edge1_id
-var edge2_id
+var edge0_id : int
+var edge1_id : int
+var edge2_id : int
 
-var v0_id
-var v1_id
-var v2_id
+var v0_id : int
+var v1_id : int
+var v2_id : int
 
 ## Stores the id of quantities to which it is connected.
 ## Negative ids mean the facet should be considered in the opposite orientation.
 ## -0.1 is the negative for 0.
 var con_quants : PackedFloat32Array = []
 
-func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false,  _oid : int = -1) -> void:
+func init(_id: int, _edge0 : Edge, _edge1 : Edge, _edge2 : Edge, _inversee0 : bool = false, _inversee1 : bool = false, _inversee2 : bool = false,  _oid : int = -1) -> void:
 	if view != null: view.queue_free()
 	
 	id = _id
@@ -86,9 +86,10 @@ func init(_id: int, _edge0, _edge1, _edge2, _inversee0 : bool = false, _inversee
 	
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/facet3d/view_facet_3d.tscn").instantiate()
-
-	view.init(v0, v1, v2)
-	add_child(view)
+	
+	if view != null:
+		view.init(v0, v1, v2)
+		add_child(view)
 	
 	edge0_id = edge0.get_id()
 	edge1_id = edge1.get_id()
@@ -116,7 +117,7 @@ func area() -> float:
 
 func volume_contribution() -> float:
 	var ret: float = 0.
-	
+
 	var v0_vector = get_v0().get_as_vector()
 	var v1_vector = get_v1().get_as_vector()
 	var v2_vector = get_v2().get_as_vector()
@@ -125,7 +126,7 @@ func volume_contribution() -> float:
 	
 	return ret/6.
 
-func is_vertex_in_facet(vertex) -> bool:
+func is_vertex_in_facet(vertex : Vertex) -> bool:
 	if edge0.tail == vertex: return true
 	if edge0.head == vertex: return true
 	if edge1.tail == vertex: return true
@@ -134,21 +135,21 @@ func is_vertex_in_facet(vertex) -> bool:
 	if edge2.head == vertex: return true
 	return false
 
-func get_next_vertex(vertex):
+func get_next_vertex(vertex : Vertex):
 	if !is_vertex_in_facet(vertex): return
 	
 	if vertex == v0: return v1
 	if vertex == v1: return v2
 	if vertex == v2: return v0
 
-func get_prev_vertex(vertex):
+func get_prev_vertex(vertex : Vertex):
 	if !is_vertex_in_facet(vertex): return
 	
 	if vertex == v0: return v2
 	if vertex == v1: return v0
 	if vertex == v2: return v1
 
-func get_oposite_side_rotated(vertex) -> Vector3:
+func get_oposite_side_rotated(vertex : Vertex) -> Vector3:
 	if !is_vertex_in_facet(vertex): return Vector3.ZERO
 	
 	var vecside = get_prev_vertex(vertex).get_as_vector() - get_next_vertex(vertex).get_as_vector()
@@ -168,11 +169,13 @@ func get_v1():
 func get_v2():
 	return v2
 
-func center() -> Array:
-	var ret = [0, 0, 0]
+func center() -> VectorN:
+	var ret : VectorN = VectorN.new()
+	ret.init(globals.AMBIENT_DIMENSION)
 	
-	for i in 3:
-		ret[i] = 1/3. * (v0.coords[i] + v1.coords[i] + v2.coords[i])
+	ret = v0.coords.sum( v1.coords )
+	ret = ret.sum( v2.coords )
+	ret = ret.product_by_scalar( 1/3. )
 	
 	return ret
 

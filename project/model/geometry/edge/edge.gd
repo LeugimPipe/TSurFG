@@ -4,11 +4,11 @@ class_name Edge
 var id : int = -1
 var oid : int = -1
 
-var tail
-var head
+var tail : Vertex
+var head : Vertex
 
-var tail_id
-var head_id
+var tail_id : int
+var head_id : int
 
 ## Stores which facets are connected to this edge
 var con_facets : PackedInt32Array = []
@@ -33,11 +33,12 @@ func init(_id : int = -1, _tail = null, _head = null, _oid : int = -1 ) -> void:
 	
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/edge3d/view_edge_3d.tscn").instantiate()
+	
+	if view != null:
+		view.init(tail, head)
+		add_child(view)
 
-	view.init(tail, head)
-	add_child(view)
-
-func connect_facet(facet) -> void:
+func connect_facet(facet : Facet) -> void:
 	var f_id = facet.get_id()
 	con_facets.append(f_id)
 
@@ -48,32 +49,29 @@ func disconnect_everything() -> void:
 func get_id() -> int:
 	return id
 
-func midpoint() -> Array:
-	var ret = [0, 0, 0]
+func midpoint() -> VectorN:
+	var ret = VectorN.new()
+	ret.init(globals.AMBIENT_DIMENSION)
 	
-	for i in 3:
-		ret[i] = 0.5 * (tail.coords[i] + head.coords[i])
+	ret = tail.coords.sum( head.coords ).product_by_scalar(.5)
 	
 	return ret
 
 func length() -> float:
-	return (head.get_as_vector() - tail.get_as_vector()).length()
+	return head.coords.subtract( tail.coords ).mod()
 
-func vector() -> PackedFloat32Array:
-	var ret : PackedFloat32Array
-	ret.resize(globals.AMBIENT_DIMENSION)
-	ret.fill(0.)
+func vector() -> VectorN:
+	var ret : VectorN = VectorN.new()
+	ret.init(globals.AMBIENT_DIMENSION)
 	
-	for i in globals.AMBIENT_DIMENSION:
-		ret[i] = head.coords[i] - tail.coords[i]
+	ret = head.coords.subtract( tail.coords )
 	
 	return ret
 
-func unit_vector() -> PackedFloat32Array:
+func unit_vector() -> VectorN:
 	var l : float = length()
-	var ret : PackedFloat32Array = vector()
+	var ret : VectorN = vector()
 	
-	for i in globals.AMBIENT_DIMENSION:
-		ret[i] /= l
+	ret = ret.product_by_scalar( 1./l )
 	
 	return ret

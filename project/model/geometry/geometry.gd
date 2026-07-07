@@ -11,9 +11,9 @@ var file_write_strat : FileWriteInterface
 @export var edge_scene : PackedScene
 @export var facet_scene : PackedScene
 
-var vertices : Array
-var edges : Array
-var facets : Array
+var vertices : Array[Vertex]
+var edges : Array[Edge]
+var facets : Array[Facet]
 
 var report_quantity : QuantityInterface
 ## Stores quantity computation strategies to be used for force computation.
@@ -33,7 +33,7 @@ signal cam_info_calculated
 signal cam_center_calculated
 
 # VectorN
-var center : Array
+var center : VectorN = VectorN.new()
 var radius : float
 
 # Force keys
@@ -70,14 +70,16 @@ func init() -> void:
 	
 	calc_characteristics()
 	
-	var main = get_node("..")
-	#print(main.get_children())
-	await main.child_entered_tree
-	#print(main.get_children())
-	var main3d = get_node("../Main3D")
-	await main3d.ready
-	#print(main.get_children())
-	cam_info_calculated.emit(center, radius)
+	if globals.AMBIENT_DIMENSION == 2 or globals.AMBIENT_DIMENSION == 3:
+		var main = get_node("..")
+		#print(main.get_children())
+		await main.child_entered_tree
+		#print(main.get_children())
+		if globals.AMBIENT_DIMENSION == 3:
+			var main3d = get_node("../Main3D")
+			await main3d.ready
+			#print(main.get_children())
+			cam_info_calculated.emit(center, radius)
 	
 	print_info()
 
@@ -111,44 +113,38 @@ func calc_characteristics() -> void:
 	chars_calced.emit()
 
 func calc_center() -> void:
-	var ret : Array
-	ret.resize(globals.AMBIENT_DIMENSION)
-	ret.fill(0.)
+	var ret : VectorN = VectorN.new()
+	ret.init(globals.AMBIENT_DIMENSION)
 	
-	var max_v : Array
-	max_v.resize(globals.AMBIENT_DIMENSION)
+	var max_v : VectorN = VectorN.new()
+	max_v.init(globals.AMBIENT_DIMENSION)
 	max_v.fill(-INF)
 	
-	var min_v : Array
-	min_v.resize(globals.AMBIENT_DIMENSION)
+	var min_v : VectorN = VectorN.new()
+	min_v.init(globals.AMBIENT_DIMENSION)
 	min_v.fill(INF)
 	
 	for v in vertices:
 		for i in globals.AMBIENT_DIMENSION:
-			if i < v.coords.size():
-				if max_v[i] < v.coords[i]:
-					max_v[i] = v.coords[i]
-				if min_v[i] > v.coords[i]:
-					min_v[i] = v.coords[i]
+			if i < v.coords.dimension:
+				if max_v.get_i(i) < v.coords.get_i(i):
+					max_v.set_i(i, v.coords.get_i(i))
+				if min_v.get_i(i) > v.coords.get_i(i):
+					min_v.set_i(i, v.coords.get_i(i))
 	
-	for i in globals.AMBIENT_DIMENSION:
-		ret[i] = (max_v[i] + min_v[i])/2.
+	ret = max_v.sum(min_v).product_by_scalar(0.5)
 	
 	center = ret
 
 func calc_radius() -> void:
 	var ret = 0.
 	
-	if center.is_empty():
+	if center.dimension == 0:
 		push_error("Cannot calculate radius: center not calculated")
 		return
 	
 	for v in vertices:
-		var dist_center : float = 0.
-		for i in globals.AMBIENT_DIMENSION:
-			if i < v.coords.size(): dist_center += (v.coords[i] - center[i]) * (v.coords[i] - center[i])
-			else: dist_center += center[i] * center[i]
-		dist_center = sqrt(dist_center)
+		var dist_center : float = v.coords.subtract(center).mod()
 		
 		if ret < dist_center:
 			ret = dist_center
@@ -164,7 +160,7 @@ func focus_cam() -> void:
 # ADD ELEMENTS
 
 ## Adds vertex with given characteristics
-func add_vertex(_coords : Array = [], _oid : int = -1, _fixed : bool = false, _id : int = -1) -> void:
+func add_vertex(_coords : VectorN = VectorN.new(), _oid : int = -1, _fixed : bool = false, _id : int = -1) -> void:
 	vertices.append(vertex_scene.instantiate())
 	var id : int = _id
 	if id == -1 : id = vertices.size()-1
@@ -235,11 +231,10 @@ func calc_forces() -> void:
 		for v in vertices:
 			v.set_force_zero( FORCE_PROJ_KEY )
 			for i in constr_quantities_ids.size():
-				v.add_force( FORCE_PROJ_KEY, [
-					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[0],
-					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[1],
-					-A.get_i(i) * v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[2]
-					] )
+				v.add_force(FORCE_PROJ_KEY,
+					v.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords
+					.product_by_scalar(-A.get_i(i)) 
+				)
 
 # MAGNITUDE RESTORATION
 
@@ -284,10 +279,9 @@ func calc_magnitude_restoration_vectors() -> void:
 		
 		for i in constr_quantities_ids.size():
 			vertex.add_force( REST_VECT_KEY,
-				[ C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[0],
-				C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[1],
-				C.get_i(i) * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[2],
-				] )
+				vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords
+				.product_by_scalar(C.get_i(i))
+			)
 
 func calc_magnitude_constraint_matrix() -> void:
 	K = SquareMatrix.new()
@@ -297,9 +291,10 @@ func calc_magnitude_constraint_matrix() -> void:
 		for j in i+1:
 			var dot_product : float = 0.
 			for vertex in vertices:
-				for d in globals.AMBIENT_DIMENSION:
-					dot_product += vertex.forces[ quantities[ constr_quantities_ids[j] ].GRAD_KEY ].coords[d] * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[d]
-			
+				dot_product += vertex.forces[ quantities[ constr_quantities_ids[j] ].GRAD_KEY ].coords.dot(
+					vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords
+				)
+				
 			K.set_ij(i, j, dot_product)
 			K.set_ij(j, i, dot_product)
 
@@ -310,10 +305,14 @@ func calc_magnitude_constraint_force_product_vector() -> void:
 	for i in constr_quantities_ids.size():
 		var dot_product : float = 0.
 		for vertex in vertices:
-			for d in globals.AMBIENT_DIMENSION:
-				for e_id in energies:
-					var e = energies[e_id]
-					dot_product += vertex.forces[ e.GRAD_KEY ].coords[d] * vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords[d]
+			
+			var total_force : VectorN = VectorN.new()
+			total_force.init(globals.AMBIENT_DIMENSION)
+			for e_id in energies:
+				var e = energies[e_id]
+				total_force = total_force.sum( vertex.forces[ e.GRAD_KEY ].coords )
+			
+			dot_product += total_force.dot( vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords )
 		
 		F.set_i(i, dot_product)
 
@@ -419,9 +418,12 @@ func iterate( i: int = -1 ) -> void:
 		
 		restore_coords()
 		
-		if (2*s0_energy - 3*s1_energy + s2_energy == 0.0): globals.time_step = 0.1
-		else: globals.time_step = 0.75 * s1 * (4*s0_energy - 5*s1_energy + s2_energy) / (2*s0_energy - 3*s1_energy + s2_energy)
-		globals.time_step = min(globals.time_step, 1.0)
+		if is_zero_approx(2*s0_energy - 3*s1_energy + s2_energy):
+			globals.time_step = 0.1
+		else:
+			globals.time_step = 0.75 * s1 * (4*s0_energy - 5*s1_energy + s2_energy) / (2*s0_energy - 3*s1_energy + s2_energy)
+			
+		globals.time_step = clamp(globals.time_step, 0.0, 1.0)
 		
 		globals.CALCULATING_STEP = false
 	
@@ -548,6 +550,7 @@ func f_get_ids_from_oid(_oid : int) -> PackedInt32Array:
 # GEOMETRY UNLOAD
 
 func unload() -> void:
+	globals.AMBIENT_DIMENSION = 3
 	globals.time_step = 0.1
 	
 	string_model = false
