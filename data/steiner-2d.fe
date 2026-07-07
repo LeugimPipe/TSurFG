@@ -1,0 +1,20 @@
+// steiner.fe
+
+space_dimension 2
+
+string
+
+vertices
+1  00.0 0.0 fixed
+2  02.0 0.0 fixed
+3  00.0 1.0 fixed
+4  02.0 1.0 fixed
+5  00.0 0.5 
+6  02.0 0.5
+
+edges  /* given by endpoints and attribute */
+1	1 5 no_refine
+2	5 3 no_refine
+3	5 6 no_refine
+4	4 6 no_refine
+5	2 6 no_refine

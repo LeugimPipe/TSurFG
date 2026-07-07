@@ -65,8 +65,22 @@ func process_defs_section() -> bool:
 		# Check for information
 		if check_head("string"):
 			geom.string_model = true
+			consume_word()
 		
-		consume_word()
+		elif check_head("space_dimension"):
+			# Consume "space_dimension"
+			consume_word()
+			var dim = get_and_consume_head()
+			if not dim.is_valid_int():
+				error()
+				push_error("Invalid number of dimensions %s" % dim)
+				return false
+			dim = dim.to_int()
+			globals.AMBIENT_DIMENSION = dim
+		
+		else:
+			consume_word()
+		
 		if file_content.is_empty():
 			error()
 			push_error("Vertices section not found")

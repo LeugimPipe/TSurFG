@@ -60,8 +60,9 @@ func init(_id : int, _coords : VectorN = VectorN.new(), _oid : int = -1, _fixed 
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/vertex3d/view_vertex_3d.tscn").instantiate()
 	
-	view.init(self)
-	add_child(view)
+	if view != null:
+		view.init(self)
+		add_child(view)
 
 func get_id() -> int:
 	return id

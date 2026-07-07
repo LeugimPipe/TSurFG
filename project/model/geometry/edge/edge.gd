@@ -33,9 +33,10 @@ func init(_id : int = -1, _tail = null, _head = null, _oid : int = -1 ) -> void:
 	
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/edge3d/view_edge_3d.tscn").instantiate()
-
-	view.init(tail, head)
-	add_child(view)
+	
+	if view != null:
+		view.init(tail, head)
+		add_child(view)
 
 func connect_facet(facet : Facet) -> void:
 	var f_id = facet.get_id()
@@ -57,7 +58,7 @@ func midpoint() -> VectorN:
 	return ret
 
 func length() -> float:
-	return (head.get_as_vector() - tail.get_as_vector()).length()
+	return head.coords.subtract( tail.coords ).mod()
 
 func vector() -> VectorN:
 	var ret : VectorN = VectorN.new()

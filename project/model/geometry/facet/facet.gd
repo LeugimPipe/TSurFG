@@ -86,9 +86,10 @@ func init(_id: int, _edge0 : Edge, _edge1 : Edge, _edge2 : Edge, _inversee0 : bo
 	
 	if globals.AMBIENT_DIMENSION == 3:
 		view = load("res://view/3d/facet3d/view_facet_3d.tscn").instantiate()
-
-	view.init(v0, v1, v2)
-	add_child(view)
+	
+	if view != null:
+		view.init(v0, v1, v2)
+		add_child(view)
 	
 	edge0_id = edge0.get_id()
 	edge1_id = edge1.get_id()
@@ -111,11 +112,6 @@ func area() -> float:
 	var v0_vector = get_v0().get_as_vector()
 	var v1_vector = get_v1().get_as_vector()
 	var v2_vector = get_v2().get_as_vector()
-	
-	if id == 0:
-		print(v0_vector)
-		print(v1_vector)
-		print(v2_vector)
 	
 	return (v1_vector-v0_vector).cross(v2_vector-v1_vector).length()/2
 

@@ -70,14 +70,16 @@ func init() -> void:
 	
 	calc_characteristics()
 	
-	var main = get_node("..")
-	#print(main.get_children())
-	await main.child_entered_tree
-	#print(main.get_children())
-	var main3d = get_node("../Main3D")
-	await main3d.ready
-	#print(main.get_children())
-	cam_info_calculated.emit(center, radius)
+	if globals.AMBIENT_DIMENSION == 2 or globals.AMBIENT_DIMENSION == 3:
+		var main = get_node("..")
+		#print(main.get_children())
+		await main.child_entered_tree
+		#print(main.get_children())
+		if globals.AMBIENT_DIMENSION == 3:
+			var main3d = get_node("../Main3D")
+			await main3d.ready
+			#print(main.get_children())
+			cam_info_calculated.emit(center, radius)
 	
 	print_info()
 
@@ -308,7 +310,7 @@ func calc_magnitude_constraint_force_product_vector() -> void:
 			total_force.init(globals.AMBIENT_DIMENSION)
 			for e_id in energies:
 				var e = energies[e_id]
-				total_force.sum( vertex.forces[ e.GRAD_KEY ].coords )
+				total_force = total_force.sum( vertex.forces[ e.GRAD_KEY ].coords )
 			
 			dot_product += total_force.dot( vertex.forces[ quantities[ constr_quantities_ids[i] ].GRAD_KEY ].coords )
 		
@@ -376,19 +378,19 @@ func iterate( i: int = -1 ) -> void:
 		globals.time_step = s1
 		alter_coordinates()
 		var s1_energy = get_energy()
-		print("Total energy %s: %s" % [s1, s1_energy])
+		#print("Total energy %s: %s" % [s1, s1_energy])
 	
 		restore_coords()
 		globals.time_step = s0
 		alter_coordinates()
 		var s0_energy = get_energy()
-		print("Total energy %s: %s" % [s0, s0_energy])
+		#print("Total energy %s: %s" % [s0, s0_energy])
 	
 		restore_coords()
 		globals.time_step = s2
 		alter_coordinates()
 		var s2_energy = get_energy()
-		print("Total energy %s: %s" % [s2, s2_energy])
+		#print("Total energy %s: %s" % [s2, s2_energy])
 		
 		while (s1_energy > s0_energy):
 			s2 = s1
@@ -400,7 +402,7 @@ func iterate( i: int = -1 ) -> void:
 			restore_coords()
 			alter_coordinates()
 			s0_energy = get_energy()
-			print("Total energy %s: %s" % [s0, s0_energy])
+			#print("Total energy %s: %s" % [s0, s0_energy])
 		
 		while (s1_energy > s2_energy):
 			s0 = s1
@@ -412,13 +414,16 @@ func iterate( i: int = -1 ) -> void:
 			restore_coords()
 			alter_coordinates()
 			s2_energy = get_energy()
-			print("Total area %s: %s" % [s2, s2_energy])
+			#print("Total area %s: %s" % [s2, s2_energy])
 		
 		restore_coords()
 		
-		if (2*s0_energy - 3*s1_energy + s2_energy == 0.0): globals.time_step = 0.1
-		else: globals.time_step = 0.75 * s1 * (4*s0_energy - 5*s1_energy + s2_energy) / (2*s0_energy - 3*s1_energy + s2_energy)
-		globals.time_step = min(globals.time_step, 1.0)
+		if is_zero_approx(2*s0_energy - 3*s1_energy + s2_energy):
+			globals.time_step = 0.1
+		else:
+			globals.time_step = 0.75 * s1 * (4*s0_energy - 5*s1_energy + s2_energy) / (2*s0_energy - 3*s1_energy + s2_energy)
+			
+		globals.time_step = clamp(globals.time_step, 0.0, 1.0)
 		
 		globals.CALCULATING_STEP = false
 	
