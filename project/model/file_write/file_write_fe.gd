@@ -14,6 +14,10 @@ func write_to_file(_file_name : String, _geom : Geometry) -> bool:
 	file.store_line("")
 	
 	# DEFINITIONS SECTION
+	
+	if globals.AMBIENT_DIMENSION != 3:
+		file.store_line("space_dimension " + str(globals.AMBIENT_DIMENSION))
+	
 	if geom.string_model:
 		file.store_line("string")
 	
