@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://cc8k02na76haw"]
-
-[ext_resource type="Script" uid="uid://cev25y7mur7ls" path="res://model/geometry/body_cube.gd" id="1_pckxy"]
-
-[node name="BodyCube" unique_id=77118916]
-script = ExtResource("1_pckxy")
